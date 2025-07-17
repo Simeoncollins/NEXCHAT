@@ -16,6 +16,8 @@ namespace NEXCHAT.Client
         public event Action<ReactionEvent>? OnReactionReceived;
         public event Action<bool>? OnReactionRemoved;
         public event Action<bool>? OnTypingUsers;
+        public event Action<Notification>? OnNotificationRecieved;
+        public event Action<bool>? OnUserStatusChanged;
 
         public bool IsConnected => _hubConnection?.State == HubConnectionState.Connected;
 
@@ -74,6 +76,16 @@ namespace NEXCHAT.Client
             _hubConnection.On<bool>("TypingUpdate", isTyping =>
             {
                 OnTypingUsers?.Invoke(isTyping);
+            });
+
+            _hubConnection.On<Notification>("NotificationRecieved", notification =>
+            {
+                OnNotificationRecieved?.Invoke(notification);
+            });
+
+            _hubConnection.On<bool>("UserStatusChanged", changed =>
+            {
+                OnUserStatusChanged?.Invoke(changed);
             });
         }
 

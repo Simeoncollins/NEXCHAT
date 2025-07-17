@@ -8,16 +8,20 @@ using NEXCHAT.CoreBusiness.Enums;
 using NEXCHAT.CoreBusiness;
 using NEXCHAT.UseCases.PluginInterfaces;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.VisualBasic;
+using NEXCHAT.CoreBusiness.Interfaces;
 
 namespace NEXCHAT.Plugin.EFCore
 {
     public class UserRepositoryEfCore : IUserStore<User>, IUserPasswordStore<User>, IUserRepository
     {
         private readonly IDbContextFactory<NEXCHATDBContext> _dbContextFactory;
+        private readonly IRealTimeNotifier _notifier;
 
-        public UserRepositoryEfCore(IDbContextFactory<NEXCHATDBContext> dbContextFactory)
+        public UserRepositoryEfCore(IDbContextFactory<NEXCHATDBContext> dbContextFactory, IRealTimeNotifier notifier)
         {
             _dbContextFactory = dbContextFactory;
+            _notifier = notifier;
         }
 
 
@@ -277,7 +281,7 @@ namespace NEXCHAT.Plugin.EFCore
         public async Task UpdateStatusAsync(Guid userId, StatusType statusType)
         {
             await using var context = await _dbContextFactory.CreateDbContextAsync();
-
+            var friends = await GetFriendListAsync(userId);
             var user = await context.Users.FindAsync(userId);
             if (user != null)
             {
@@ -287,6 +291,11 @@ namespace NEXCHAT.Plugin.EFCore
                     user.LastLogin = DateTime.UtcNow;
                 }
                 await context.SaveChangesAsync();
+
+                foreach (var friend in friends)
+                {
+                    await _notifier.NotifyGroupAsync($"user-{friend.UserId}", "UserStatusChanged", true);
+                }
             }
         }
     }

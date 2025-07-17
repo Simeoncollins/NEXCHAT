@@ -6,23 +6,23 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using NEXCHAT.CoreBusiness.Enums;
-using NEXCHAT.CoreBusiness.Hubs;
 using NEXCHAT.CoreBusiness;
 using NEXCHAT.UseCases.PluginInterfaces;
+using NEXCHAT.CoreBusiness.Interfaces;
 
 namespace NEXCHAT.Plugin.EFCore
 {
     public class NotificationRepositoryEfCore : INotificationRepository
     {
         private readonly IDbContextFactory<NEXCHATDBContext> _dbContextFactory;
-        private readonly IHubContext<ChatHub> _hubContext;
+        private readonly IRealTimeNotifier _notifier;
 
         public NotificationRepositoryEfCore(
             IDbContextFactory<NEXCHATDBContext> dbContextFactory,
-            IHubContext<ChatHub> hubContext)
+            IRealTimeNotifier notifier)
         {
             _dbContextFactory = dbContextFactory;
-            _hubContext = hubContext;
+            _notifier = notifier;
         }
 
         public async Task<int> GetUnseenNotificationCountAsync(Guid userId)
@@ -78,8 +78,7 @@ namespace NEXCHAT.Plugin.EFCore
             await context.SaveChangesAsync();
 
             // Send real-time update
-            await _hubContext.Clients.Group($"user-{userId}")
-                .SendAsync("ReceiveNotification", notification);
+            await _notifier.NotifyGroupAsync($"user-{userId}", "NotificationRecieved", notification);
         }
     }
 }
