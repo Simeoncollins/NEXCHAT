@@ -1,0 +1,41 @@
+﻿@page "/"
+@inject HttpClient http
+
+<PageTitle>Home</PageTitle>
+
+<h1>Hello, world!</h1>
+
+Welcome to your new app.
+<table>
+	<tr>
+		<th>Id</th>
+		<th>Name</th>
+		<th>Url</th>
+	</tr>
+	@if(_reactions is not null){
+		foreach(var reaction in _reactions){
+			<tr>
+				<td>@reaction.ReactionId</td>
+				<td>@reaction.ReactionName</td>
+				<td>
+					<dotlottie-player src="@reaction.EmojiPath" background="transparent" speed="1" class="emoji" loop autoplay></dotlottie-player>
+				</td>
+			</tr>
+		}
+	}
+	else{
+		<tr>
+			<td colspan="3" align="center">No emojis available</td>
+		</tr>
+	}
+</table>
+
+@code
+{
+	private List<Reaction>? _reactions;
+
+	protected override async Task OnInitializedAsync()
+	{
+		_reactions = await http.GetFromJsonAsync<List<Reaction>>("api/reactions");
+	}
+}

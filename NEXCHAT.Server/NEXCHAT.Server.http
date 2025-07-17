@@ -1,0 +1,8 @@
+@NEXCHAT.Server_HostAddress = http://localhost:5058
+@contentType = application/json
+
+GET {{BaseUrl}}/api/reactions
+Accept: {{contentType}}
+
+###
+

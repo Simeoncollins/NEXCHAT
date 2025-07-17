@@ -1,0 +1,293 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using NEXCHAT.CoreBusiness.Enums;
+using NEXCHAT.CoreBusiness;
+using NEXCHAT.UseCases.PluginInterfaces;
+using Microsoft.AspNetCore.Identity;
+
+namespace NEXCHAT.Plugin.EFCore
+{
+    public class UserRepositoryEfCore : IUserStore<User>, IUserPasswordStore<User>, IUserRepository
+    {
+        private readonly IDbContextFactory<NEXCHATDBContext> _dbContextFactory;
+
+        public UserRepositoryEfCore(IDbContextFactory<NEXCHATDBContext> dbContextFactory)
+        {
+            _dbContextFactory = dbContextFactory;
+        }
+
+
+        public async Task<IdentityResult> CreateAsync(User user, CancellationToken cancellationToken)
+        {
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
+            context.Users.Add(user);
+            await context.SaveChangesAsync();
+            return IdentityResult.Success;
+        }
+
+        public async Task<IdentityResult> DeleteAsync(User user, CancellationToken cancellationToken)
+        {
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
+            var participations = await context.ConversationParticipants
+           .Where(cp => cp.UserId == user.UserId)
+           .ToListAsync();
+            context.ConversationParticipants.RemoveRange(participations);
+
+            var typingIndicators = await context.ConversationTypingUsers
+            .Where(ct => ct.UserId == user.UserId)
+            .ToListAsync();
+            context.ConversationTypingUsers.RemoveRange(typingIndicators);
+
+            var messagesSeen = await context.MessagesSeen
+            .Where(ms => ms.UserId == user.UserId)
+            .ToListAsync();
+            context.MessagesSeen.RemoveRange(messagesSeen);
+
+            var messages = await context.Messages
+            .Where(m => m.SenderId == user.UserId)
+            .ToListAsync();
+
+            foreach (var message in messages)
+            {
+                message.IsDeleted = true;
+                message.Content = "User no longer exists";
+                message.SenderId = Guid.Empty;
+                message.ModifiedAt = DateTime.UtcNow;
+            }
+
+            context.Users.Remove(user);
+            await context.SaveChangesAsync();
+            return IdentityResult.Success;
+        }
+
+        public async Task<User> FindByIdAsync(string userId, CancellationToken cancellationToken)
+        {
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
+            return await context.Users
+                .Include(u => u.SentFriendRequests)
+                .Include(u => u.ReceivedFriendRequests)
+                .FirstOrDefaultAsync(u => u.UserId.ToString() == userId);
+        }
+
+        public async Task<User> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)
+        {
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
+            return await context.Users
+                .Include(u => u.SentFriendRequests)
+                .Include(u => u.ReceivedFriendRequests)
+                .FirstOrDefaultAsync(u => u.Email == normalizedUserName);
+        }
+
+        public async Task<IEnumerable<User>> GetUsersByNameAsync(string name, int pageIndex, int pageSize)
+        {
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
+
+            var query = context.Users.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                query = query.Where(u =>
+                    u.FirstName.Contains(name) ||
+                    u.LastName.Contains(name) ||
+                    u.UserName.Contains(name));
+            }
+
+            return await query.OrderBy(u => u.UserName)
+                .Skip((pageIndex - 1) * pageSize)
+                .Take(pageSize)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+
+        // Implement other interface methods similarly
+
+        public void Dispose()
+        {
+            // EF Core handles context disposal automatically
+        }
+
+        // IUserStore implementation
+        public Task<string> GetUserIdAsync(User user, CancellationToken cancellationToken)
+            => Task.FromResult(user.UserId.ToString());
+
+        public Task<string> GetUserNameAsync(User user, CancellationToken cancellationToken)
+            => Task.FromResult(user.UserName);
+
+        public Task SetUserNameAsync(User user, string userName, CancellationToken cancellationToken)
+        {
+            user.UserName = userName;
+            return Task.CompletedTask;
+        }
+
+        public Task<string> GetNormalizedUserNameAsync(User user, CancellationToken cancellationToken)
+            => Task.FromResult(user.Email);
+
+        public Task SetNormalizedUserNameAsync(User user, string normalizedName, CancellationToken cancellationToken)
+        {
+            user.Email = normalizedName;
+            return Task.CompletedTask;
+        }
+        public Task<IdentityResult> UpdateAsync(User user, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        // IUserPasswordStore implementation
+        public Task SetPasswordHashAsync(User user, string passwordHash, CancellationToken cancellationToken)
+        {
+            user.PasswordHash = passwordHash;
+            return Task.CompletedTask;
+        }
+
+        public Task<string> GetPasswordHashAsync(User user, CancellationToken cancellationToken)
+            => Task.FromResult(user.PasswordHash);
+
+        public Task<bool> HasPasswordAsync(User user, CancellationToken cancellationToken)
+            => Task.FromResult(!string.IsNullOrEmpty(user.PasswordHash));
+
+        // Friend management implementation
+        public async Task SendFriendRequestAsync(Guid requesterId, Guid receiverId)
+        {
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
+
+            var request = new UserFriend
+            {
+                RequesterId = requesterId,
+                ReceiverId = receiverId,
+                Status = FriendRequestStatus.Pending,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await context.UserFriends.AddAsync(request);
+            await context.SaveChangesAsync();
+        }
+
+        public async Task AcceptFriendRequestAsync(Guid friendRequestId)
+        {
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
+
+            var request = await context.UserFriends.FindAsync(friendRequestId);
+            if (request != null)
+            {
+                request.Status = FriendRequestStatus.Accepted;
+                await context.SaveChangesAsync();
+            }
+        }
+
+        public async Task<IEnumerable<User>> GetFriendListAsync(Guid userId)
+        {
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
+
+            return await context.UserFriends
+                .Where(uf => (uf.RequesterId == userId || uf.ReceiverId == userId) &&
+                             uf.Status == FriendRequestStatus.Accepted)
+                .Select(uf => uf.RequesterId == userId ? uf.Receiver : uf.Requester)
+                .ToListAsync();
+        }
+
+        public async Task BlockFriendAsync(Guid userId, Guid friendId)
+        {
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
+
+            // Check if relationship exists
+            var relationship = await context.UserFriends
+                .FirstOrDefaultAsync(uf =>
+                    (uf.RequesterId == userId && uf.ReceiverId == friendId) ||
+                    (uf.RequesterId == friendId && uf.ReceiverId == userId));
+
+            if (relationship != null)
+            {
+                relationship.Status = FriendRequestStatus.Blocked;
+            }
+
+            await context.SaveChangesAsync();
+        }
+
+        public async Task<IEnumerable<User>> GetBlockedFriendsAsync(Guid userId)
+        {
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
+
+            return await context.UserFriends
+                .Where(uf => (uf.RequesterId == userId || uf.ReceiverId == userId) &&
+                             uf.Status == FriendRequestStatus.Blocked)
+                .Select(uf => uf.RequesterId == userId ? uf.Receiver : uf.Requester)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<User>> GetPendingFriendRequestsAsync(Guid userId)
+        {
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
+
+            return await context.UserFriends
+                .Where(uf => uf.ReceiverId == userId &&
+                             uf.Status == FriendRequestStatus.Pending)
+                .Include(uf => uf.Requester)
+                .Select(uf => uf.Requester)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        public async Task<User> GetUserByIdAsync(Guid userId)
+        {
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
+
+            return await context.Users
+                .Include(u => u.SentFriendRequests)
+                .Include(u => u.ReceivedFriendRequests)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.UserId == userId);
+        }
+
+        public async Task RejectFriendRequestAsync(Guid friendRequestId)
+        {
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
+
+            var request = await context.UserFriends.FindAsync(friendRequestId);
+            if (request != null)
+            {
+                request.Status = FriendRequestStatus.Rejected;
+                await context.SaveChangesAsync();
+            }
+        }
+
+        public async Task UnBlockFriendAsync(Guid userId, Guid friendId)
+        {
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
+
+            // Check if relationship exists
+            var relationship = await context.UserFriends
+                .FirstOrDefaultAsync(uf =>
+                    (uf.RequesterId == userId && uf.ReceiverId == friendId) ||
+                    (uf.RequesterId == friendId && uf.ReceiverId == userId));
+
+            if (relationship != null)
+            {
+                relationship.Status = FriendRequestStatus.Accepted;
+            }
+
+            await context.SaveChangesAsync();
+        }
+
+        public async Task UpdateStatusAsync(Guid userId, StatusType statusType)
+        {
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
+
+            var user = await context.Users.FindAsync(userId);
+            if (user != null)
+            {
+                user.Status = statusType;
+                if (statusType == StatusType.Online)
+                {
+                    user.LastLogin = DateTime.UtcNow;
+                }
+                await context.SaveChangesAsync();
+            }
+        }
+    }
+}

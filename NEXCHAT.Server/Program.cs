@@ -1,0 +1,136 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using NEXCHAT.CoreBusiness;
+using NEXCHAT.CoreBusiness.Interfaces;
+using NEXCHAT.Plugin.EFCore;
+using NEXCHAT.Server.Hubs;
+using NEXCHAT.Server.Services;
+using NEXCHAT.UseCases.ConversationManagement;
+using NEXCHAT.UseCases.ConversationManagement.Interfaces;
+using NEXCHAT.UseCases.FriendManagement;
+using NEXCHAT.UseCases.FriendManagement.Interfaces;
+using NEXCHAT.UseCases.MessageManagement;
+using NEXCHAT.UseCases.MessageManagement.Interfaces;
+using NEXCHAT.UseCases.NotificationManagement;
+using NEXCHAT.UseCases.NotificationManagement.Interfaces;
+using NEXCHAT.UseCases.PluginInterfaces;
+using NEXCHAT.UseCases.ReactionManagement;
+using NEXCHAT.UseCases.ReactionManagement.Interfaces;
+using NEXCHAT.UseCases.Users;
+using NEXCHAT.UseCases.Users.Interfaces;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// configure repositories
+builder.Services.AddTransient<IUserRepository, UserRepositoryEfCore>();
+builder.Services.AddTransient<IConversationParticipantRepository, ConversationParticipantRepositoryEfCore>();
+builder.Services.AddTransient<IConversationRepository, ConversationRepositoryEfCore>();
+builder.Services.AddTransient<IMessageRepository, MessageRepositoryEfCore>();
+builder.Services.AddTransient<INotificationRepository, NotificationRepositoryEfCore>();
+builder.Services.AddTransient<IReactionRepository, ReactionRepositoryEfCore>();
+
+// conversation management
+builder.Services.AddTransient<IAddParticipantToConversationUseCase, AddParticipantToConversationUseCase>();
+builder.Services.AddTransient<IGetConversationUseCase, GetConversationUseCase>();
+builder.Services.AddTransient<IGetUnreadConversationCountUseCase, GetUnreadConversationCountUseCase>();
+builder.Services.AddTransient<IGetUserConversationsUseCase, GetUserConversationsUseCase>();
+builder.Services.AddTransient<IRemoveParticipantFromConversationUseCase, RemoveParticipantFromConversationUseCase>();
+builder.Services.AddTransient<ISetTypingIndicatorUseCase, SetTypingIndicatorUseCase>();
+builder.Services.AddTransient<IStartConversationUseCase, StartConversationUseCase>();
+builder.Services.AddTransient<IUpdateGroupDetailsUseCase, UpdateGroupDetailsUseCase>();
+
+// message management
+builder.Services.AddTransient<IAddReactionToMessageUseCase, AddReactionToMessageUseCase>();
+builder.Services.AddTransient<IDeleteMessageUseCase, DeleteMessageUseCase>();
+builder.Services.AddTransient<IEditMessageUseCase, EditMessageUseCase>();
+builder.Services.AddTransient<IGetMessagesInConversationUseCase, GetMessagesInConversationUseCase>();
+builder.Services.AddTransient<IMarkMessageAsDeliveredUseCase, MarkMessageAsDeliveredUseCase>();
+builder.Services.AddTransient<IMarkNewMessagesAsSeenUseCase, MarkNewMessagesAsSeenUseCase>();
+builder.Services.AddTransient<IRemoveReactionFromMessageUseCase, RemoveReactionFromMessageUseCase>();
+builder.Services.AddTransient<ISendMessageUseCase, SendMessageUseCase>();
+
+// friend management
+builder.Services.AddTransient<IAcceptFriendRequestUseCase, AcceptFriendRequestUseCase>();
+builder.Services.AddTransient<IBlockFriendUseCase, BlockFriendUseCase>();
+builder.Services.AddTransient<IGetBlockedFriendsUseCase, GetBlockedFriendsUseCase>();
+builder.Services.AddTransient<IGetFriendListUseCase, GetFriendListUseCase>();
+builder.Services.AddTransient<IGetPendingFriendRequestsUseCase, GetPendingFriendRequestsUseCase>();
+builder.Services.AddTransient<IRejectFriendRequestUseCase, RejectFriendRequestUseCase>();
+builder.Services.AddTransient<ISendFriendRequestUseCase, SendFriendRequestUseCase>();
+builder.Services.AddTransient<IUnBlockFriendUseCase, UnBlockFriendUseCase>();
+
+// notification management
+builder.Services.AddTransient<IGetUnseenNotificationCountUseCase, GetUnseenNotificationCountUseCase>();
+builder.Services.AddTransient<IGetUserNotificationsUseCase, GetUserNotificationsUseCase>();
+builder.Services.AddTransient<IMarkNotificationsAsSeenUseCase, MarkNotificationsAsSeenUseCase>();
+builder.Services.AddTransient<ISendNotificationUseCase, SendNotificationUseCase>();
+
+// Reaction management
+builder.Services.AddTransient<ICreateReactionUseCase, CreateReactionUseCase>();     
+builder.Services.AddTransient<IGetReactionsUseCase, GetReactionsUseCase>();     
+builder.Services.AddTransient<IGetReactionByIdUseCase, GetReactionByIdUseCase>();  
+
+// users
+builder.Services.AddTransient<IGetUserByIdUseCase, GetUserByIdUseCase>();
+builder.Services.AddTransient<IGetUsersByNameUseCase, GetUsersByNameUseCase>();
+builder.Services.AddTransient<IUpdateUserStatusUseCase, UpdateUserStatusUseCase>();
+
+// signalR notifier
+builder.Services.AddScoped<IRealTimeNotifier, SignalRNotifier>();
+
+
+
+// identity 
+builder.Services.AddIdentity<User, IdentityRole>()
+    .AddUserStore<UserRepositoryEfCore>()
+    .AddRoleStore<RoleRepositoryEfCore>()
+    .AddDefaultTokenProviders();
+
+builder.Services.AddTransient<IUserStore<User>, UserRepositoryEfCore>();
+builder.Services.AddTransient<IRoleStore<IdentityRole>, RoleRepositoryEfCore>();
+
+// singalR
+builder.Services.AddSignalR();
+
+
+
+
+builder.Services.AddDbContextFactory<NEXCHATDBContext>((services, options) =>
+{
+    var connectionString = builder.Configuration["ConnectionStrings:NexchatConnection"];
+    options.UseSqlServer(
+        connectionString,
+        sql =>
+        {
+            sql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+            sql.EnableRetryOnFailure(maxRetryCount: 5);
+        }
+    );
+}, ServiceLifetime.Scoped);
+
+builder.Services.AddControllersWithViews();
+builder.Services.AddRazorPages();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+    app.UseWebAssemblyDebugging();
+}
+app.MapHub<ChatHub>("/chatHub");
+
+app.UseHttpsRedirection();
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
+app.UseAuthorization();
+app.MapRazorPages();
+app.MapControllers();
+app.MapFallbackToFile("index.html");
+app.Run();
