@@ -12,7 +12,7 @@ using NEXCHAT.Plugin.EFCore;
 namespace NEXCHAT.Infrastructure.Migrations
 {
     [DbContext(typeof(NEXCHATDBContext))]
-    [Migration("20250715192320_Initial")]
+    [Migration("20250718155243_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -327,6 +327,33 @@ namespace NEXCHAT.Infrastructure.Migrations
                             EmojiPath = "https://lottie.host/1ba46ee9-b4d2-44c7-baa8-8fa0adc4ccb7/oc0HMXijhA.lottie",
                             ReactionName = "Crying"
                         });
+                });
+
+            modelBuilder.Entity("NEXCHAT.CoreBusiness.RefreshToken", b =>
+                {
+                    b.Property<Guid>("RefreshTokenId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRevoked")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("RefreshTokenId");
+
+                    b.ToTable("RefreshTokens");
                 });
 
             modelBuilder.Entity("NEXCHAT.CoreBusiness.User", b =>

@@ -83,7 +83,7 @@ namespace NEXCHAT.Plugin.EFCore
             return await context.Users
                 .Include(u => u.SentFriendRequests)
                 .Include(u => u.ReceivedFriendRequests)
-                .FirstOrDefaultAsync(u => u.Email == normalizedUserName);
+                .FirstOrDefaultAsync(u => u.Email == normalizedUserName || u.UserName == normalizedUserName);
         }
 
         public async Task<IEnumerable<User>> GetUsersByNameAsync(string name, int pageIndex, int pageSize)

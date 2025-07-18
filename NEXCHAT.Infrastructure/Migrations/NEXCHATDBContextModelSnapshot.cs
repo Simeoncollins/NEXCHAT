@@ -326,6 +326,33 @@ namespace NEXCHAT.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("NEXCHAT.CoreBusiness.RefreshToken", b =>
+                {
+                    b.Property<Guid>("RefreshTokenId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRevoked")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("RefreshTokenId");
+
+                    b.ToTable("RefreshTokens");
+                });
+
             modelBuilder.Entity("NEXCHAT.CoreBusiness.User", b =>
                 {
                     b.Property<Guid>("UserId")

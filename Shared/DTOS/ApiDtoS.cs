@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using NEXCHAT.CoreBusiness.Enums;
 
-namespace NEXCHAT.Server.DTOS
+namespace Shared.DTOS
 {
     public class StartConversationRequestDto
     {
@@ -47,5 +47,25 @@ namespace NEXCHAT.Server.DTOS
         public Guid UserId { get; set; }
         public StatusType StatusType { get; set; }
     }
+
+    public class LoginDto
+    {
+        public string Username { get; set; }
+        public string Password { get; set; }
+    }
+
+    public class RefreshDto
+    {
+        public Guid UserId { get; set; }
+        public string RefreshToken { get; set; }
+    }
+
+    public class TokenResponseDto
+    {
+        public Guid UserId { get; set; }
+        public string AccessToken { get; set; }
+        public string RefreshToken { get; set; }
+    }
+
 
 }

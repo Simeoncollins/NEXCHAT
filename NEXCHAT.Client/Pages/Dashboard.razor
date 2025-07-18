@@ -1,0 +1,81 @@
+﻿@page "/dashboard"
+@inject AuthenticationStateProvider AuthStateProvider
+@inject TokenService TokenSvc
+@inject NavigationManager Nav
+@inject HttpClient Http
+@attribute [Authorize]
+
+
+<h3>Welcome, @user?.UserName!</h3>
+
+@if (isLoading)
+{
+    <p><em>Loading your profile…</em></p>
+}
+else if (user == null)
+{
+    <p class="text-danger">Unable to load user details. Please <a @onclick="RedirectToLogin">log in</a> again.</p>
+}
+else
+{
+    <div class="card" style="width: 18rem;">
+        <img src="@user.PhotoPath" class="card-img-top" alt="Profile photo" />
+        <div class="card-body">
+            <h5 class="card-title">@user.FirstName @user.LastName</h5>
+            <p class="card-text">
+                <strong>Username:</strong> @user.UserName<br />
+                <strong>Email:</strong> @user.Email<br />
+                <strong>Status:</strong> @user.Status<br />
+                <strong>Date Joined:</strong> @user.DateJoined.ToLocalTime().ToString("MMMM dd, yyyy")
+            </p>
+            <button class="btn btn-danger" @onclick="Logout">Logout</button>
+        </div>
+    </div>
+}
+
+@code {
+    private User? user;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userIdClaim = auth.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            isLoading = false;
+            return;
+        }
+
+        try
+        {
+            user = await Http.GetFromJsonAsync<User>($"api/users/{userId}");
+        }
+        catch
+        {
+            user = null;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task Logout()
+    {
+        // 1) Clear tokens
+        await TokenSvc.RemoveAsync();
+
+        // 2) Notify auth provider of anonymous user
+        if (AuthStateProvider is JwtAuthStateProvider jwtProv)
+        {
+            jwtProv.NotifyUserLogout();
+        }
+
+        // 3) Redirect to login
+        Nav.NavigateTo("/login", true);
+    }
+
+    private void RedirectToLogin()
+        => Nav.NavigateTo("/login", true);
+}

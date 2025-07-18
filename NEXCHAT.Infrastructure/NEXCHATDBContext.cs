@@ -30,6 +30,8 @@ namespace NEXCHAT.Plugin.EFCore
         public DbSet<Reaction> Reactions => Set<Reaction>();
         public DbSet<MessageSeen> MessagesSeen => Set<MessageSeen>(); // Junction table
         public DbSet<IdentityRole> Roles { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
