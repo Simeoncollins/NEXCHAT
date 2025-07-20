@@ -27,6 +27,22 @@ namespace NEXCHAT.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "RefreshTokens",
+                columns: table => new
+                {
+                    RefreshTokenId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Token = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    IsRevoked = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RefreshTokens", x => x.RefreshTokenId);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Roles",
                 columns: table => new
                 {
@@ -53,6 +69,8 @@ namespace NEXCHAT.Infrastructure.Migrations
                     Phone = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Country = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Bio = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    SecurityQuestion = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    SecurityAnswer = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Status = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
                     DateJoined = table.Column<DateTime>(type: "datetime2", nullable: false),
                     LastLogin = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -298,12 +316,12 @@ namespace NEXCHAT.Infrastructure.Migrations
 
             migrationBuilder.InsertData(
                 table: "Users",
-                columns: new[] { "UserId", "Bio", "Country", "DateJoined", "Email", "FirstName", "LastLogin", "LastName", "PasswordHash", "Phone", "PhotoPath", "Roles", "Status", "UserName" },
+                columns: new[] { "UserId", "Bio", "Country", "DateJoined", "Email", "FirstName", "LastLogin", "LastName", "PasswordHash", "Phone", "PhotoPath", "Roles", "SecurityAnswer", "SecurityQuestion", "Status", "UserName" },
                 values: new object[,]
                 {
-                    { new Guid("11111111-1111-1111-1111-111111111111"), "Aspiring writer and tech innovator...", "United States", new DateTime(2023, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "proxima@gmail.com", "Proxima", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Cen", "AQAAAAIAAYagAAAAEBWuvAH8bLsGDStNP11zDw42A3H2kcA+T0dYM/sVp1D2nS+hIy/85ADCgN9ShVURVw==", "1234567890", "Uploads/User/bettle.jpg", "[\"User\"]", "Online", "proximacen10" },
-                    { new Guid("11111111-1111-1111-1111-111111111112"), "Night sky enthusiast and telescope collector", "Canada", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "astro@example.com", "Orion", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Starborn", "AQAAAAIAAYagAAAAEBWuvAH8bLsGDStNP11zDw42A3H2kcA+T0dYM/sVp1D2nS+hIy/85ADCgN9ShVURVw==", "555-1234", "Uploads/User/orion.jpg", "[\"User\"]", "Offline", "astro_photographer" },
-                    { new Guid("11111111-1111-1111-1111-111111111113"), "Building the future of communication technology", "United Kingdom", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "pioneer@tech.io", "Ada", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Innovator", "AQAAAAIAAYagAAAAEBWuvAH8bLsGDStNP11zDw42A3H2kcA+T0dYM/sVp1D2nS+hIy/85ADCgN9ShVURVw==", "+1-555-9876", "Uploads/User/ada.jpg", "[\"User\"]", "Offline", "tech_pioneer" }
+                    { new Guid("11111111-1111-1111-1111-111111111111"), "Aspiring writer and tech innovator...", "United States", new DateTime(2023, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "proxima@gmail.com", "Proxima", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Cen", "AQAAAAIAAYagAAAAEBWuvAH8bLsGDStNP11zDw42A3H2kcA+T0dYM/sVp1D2nS+hIy/85ADCgN9ShVURVw==", "1234567890", "Uploads/User/bettle.jpg", "[\"User\"]", "Jessie", "What was the name of your first pet?", "Online", "proximacen10" },
+                    { new Guid("11111111-1111-1111-1111-111111111112"), "Night sky enthusiast and telescope collector", "Canada", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "astro@example.com", "Orion", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Starborn", "AQAAAAIAAYagAAAAEBWuvAH8bLsGDStNP11zDw42A3H2kcA+T0dYM/sVp1D2nS+hIy/85ADCgN9ShVURVw==", "555-1234", "Uploads/User/orion.jpg", "[\"User\"]", "Jessie", "What was the name of your first pet?", "Offline", "astro_photographer" },
+                    { new Guid("11111111-1111-1111-1111-111111111113"), "Building the future of communication technology", "United Kingdom", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "pioneer@tech.io", "Ada", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Innovator", "AQAAAAIAAYagAAAAEBWuvAH8bLsGDStNP11zDw42A3H2kcA+T0dYM/sVp1D2nS+hIy/85ADCgN9ShVURVw==", "+1-555-9876", "Uploads/User/ada.jpg", "[\"User\"]", "Jessie", "What was the name of your first pet?", "Offline", "tech_pioneer" }
                 });
 
             migrationBuilder.CreateIndex(
@@ -412,6 +430,9 @@ namespace NEXCHAT.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "Notifications");
+
+            migrationBuilder.DropTable(
+                name: "RefreshTokens");
 
             migrationBuilder.DropTable(
                 name: "Roles");

@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.18" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="8.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
 	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Core" Version="1.2.0" />
@@ -24,6 +25,7 @@
     <ProjectReference Include="..\NEXCHAT.Infrastructure\NEXCHAT.Infrastructure.csproj" />
     <ProjectReference Include="..\NEXCHAT.UseCases\NEXCHAT.UseCases.csproj" />
     <ProjectReference Include="..\NEXHAT.CoreBusiness\NEXCHAT.CoreBusiness.csproj" />
+    <ProjectReference Include="..\Shared\Shared.csproj" />
   </ItemGroup>
 
 </Project>

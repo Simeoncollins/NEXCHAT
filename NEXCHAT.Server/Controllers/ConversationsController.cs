@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NEXCHAT.CoreBusiness;
-using NEXCHAT.Server.DTOS;
+using Shared.DTOS;
 using NEXCHAT.UseCases.ConversationManagement.Interfaces;
 
 namespace NEXCHAT.Server.Controllers

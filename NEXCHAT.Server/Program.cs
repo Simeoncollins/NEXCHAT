@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using NEXCHAT.CoreBusiness;
 using NEXCHAT.CoreBusiness.Interfaces;
@@ -18,6 +18,10 @@ using NEXCHAT.UseCases.ReactionManagement;
 using NEXCHAT.UseCases.ReactionManagement.Interfaces;
 using NEXCHAT.UseCases.Users;
 using NEXCHAT.UseCases.Users.Interfaces;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using NEXCHAT.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,6 +32,7 @@ builder.Services.AddTransient<IConversationRepository, ConversationRepositoryEfC
 builder.Services.AddTransient<IMessageRepository, MessageRepositoryEfCore>();
 builder.Services.AddTransient<INotificationRepository, NotificationRepositoryEfCore>();
 builder.Services.AddTransient<IReactionRepository, ReactionRepositoryEfCore>();
+builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepositoryEfCore>();
 
 // conversation management
 builder.Services.AddTransient<IAddParticipantToConversationUseCase, AddParticipantToConversationUseCase>();
@@ -75,25 +80,67 @@ builder.Services.AddTransient<IGetUserByIdUseCase, GetUserByIdUseCase>();
 builder.Services.AddTransient<IGetUsersByNameUseCase, GetUsersByNameUseCase>();
 builder.Services.AddTransient<IUpdateUserStatusUseCase, UpdateUserStatusUseCase>();
 
+// custom Identity
+builder.Services.AddScoped<IUserStore<User>, UserRepositoryEfCore>();
+builder.Services.AddScoped<IUserPasswordStore<User>, UserRepositoryEfCore>();
+
+
 // signalR notifier
 builder.Services.AddScoped<IRealTimeNotifier, SignalRNotifier>();
 
+//auth with jwt and identity
+builder.Services
+  // Core Identity services, but without EF’s built‑in stores:
+  .AddIdentityCore<User>(options => {
+      options.Password.RequiredLength = 8;
+      options.Password.RequireDigit = true;
+      options.Password.RequireLowercase = true;
+      options.Password.RequireUppercase = true;
+      options.Password.RequireNonAlphanumeric = false;
+      options.Password.RequireDigit = true;
+  })
+  // Tell Identity to use your custom store for IUserStore<User> + IUserPasswordStore<User>:
+  .AddUserStore<UserRepositoryEfCore>()
+  .AddDefaultTokenProviders();    // enables password‑reset, email confirmation, etc.
+
+builder.Services.AddScoped<UserRepositoryEfCore>();
 
 
-// identity 
-builder.Services.AddIdentity<User, IdentityRole>()
-    .AddUserStore<UserRepositoryEfCore>()
-    .AddRoleStore<RoleRepositoryEfCore>()
-    .AddDefaultTokenProviders();
+//jwt brearer
+builder.Services.AddAuthentication(options => {
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options => {
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
 
-builder.Services.AddTransient<IUserStore<User>, UserRepositoryEfCore>();
-builder.Services.AddTransient<IRoleStore<IdentityRole>, RoleRepositoryEfCore>();
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(
+                                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+    };
+
+    // allow SignalR to read tokens from query string
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = ctx => {
+            var token = ctx.Request.Query["access_token"];
+            var path = ctx.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(token) && path.StartsWithSegments("/chatHub"))
+                ctx.Token = token;
+            return Task.CompletedTask;
+        }
+    };
+});
+
 
 // singalR
 builder.Services.AddSignalR();
-
-
-
 
 builder.Services.AddDbContextFactory<NEXCHATDBContext>((services, options) =>
 {

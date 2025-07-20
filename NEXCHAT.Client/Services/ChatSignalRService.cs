@@ -2,11 +2,12 @@
 using NEXCHAT.CoreBusiness;
 using NEXCHAT.CoreBusiness.Classes;
 
-namespace NEXCHAT.Client
+namespace NEXCHAT.Client.Services
 {
     public class ChatSignalRService
     {
         private HubConnection? _hubConnection;
+        private TokenService? _tokenService;
 
         public event Action<Message>? OnMessageReceived;
         public event Action<bool>? OnMessageDeleted;
@@ -27,9 +28,18 @@ namespace NEXCHAT.Client
                 return;
 
             _hubConnection = new HubConnectionBuilder()
-                .WithUrl($"https://localhost:5001/chatHub?userId={userId}")
-                .WithAutomaticReconnect()
-                .Build();
+              .WithUrl("/chatHub", options =>
+              {
+                  options.AccessTokenProvider = async () =>
+                  {
+                      // grab your JWT from wherever you’ve stored it
+                      var dto = await _tokenService.GetAsync();
+                      return dto?.AccessToken ?? "";
+                  };
+              })
+              .WithAutomaticReconnect()
+              .Build();
+
 
             RegisterEventHandlers();
 

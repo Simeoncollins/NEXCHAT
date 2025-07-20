@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using NEXCHAT.Server.DTOS;
+using Shared.DTOS;
 using NEXCHAT.UseCases.Users;
 using NEXCHAT.UseCases.Users.Interfaces;
 

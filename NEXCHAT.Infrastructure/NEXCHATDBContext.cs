@@ -30,6 +30,8 @@ namespace NEXCHAT.Plugin.EFCore
         public DbSet<Reaction> Reactions => Set<Reaction>();
         public DbSet<MessageSeen> MessagesSeen => Set<MessageSeen>(); // Junction table
         public DbSet<IdentityRole> Roles { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -264,6 +266,8 @@ namespace NEXCHAT.Plugin.EFCore
                         Bio = "Aspiring writer and tech innovator...",
                         PhotoPath = "Uploads/User/bettle.jpg",
                         Roles = new List<string> { "User" },
+                        SecurityQuestion = "What was the name of your first pet?",
+                        SecurityAnswer = "Jessie",
                     },
                     new User
                     {
@@ -281,6 +285,8 @@ namespace NEXCHAT.Plugin.EFCore
                         Bio = "Night sky enthusiast and telescope collector",
                         PhotoPath = "Uploads/User/orion.jpg",
                         Roles = new List<string> { "User" },
+                        SecurityQuestion = "What was the name of your first pet?",
+                        SecurityAnswer = "Jessie",
                     },
                     new User
                     {
@@ -298,6 +304,8 @@ namespace NEXCHAT.Plugin.EFCore
                         Bio = "Building the future of communication technology",
                         PhotoPath = "Uploads/User/ada.jpg",
                         Roles = new List<string> { "User" },
+                        SecurityQuestion = "What was the name of your first pet?",
+                        SecurityAnswer = "Jessie",
                     }
                 );
             });
