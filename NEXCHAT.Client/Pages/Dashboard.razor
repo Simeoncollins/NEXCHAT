@@ -26,7 +26,10 @@ else
                 <strong>Username:</strong> @user.UserName<br />
                 <strong>Email:</strong> @user.Email<br />
                 <strong>Status:</strong> @user.Status<br />
+                <strong>Question:</strong> @user.SecurityQuestion<br />
+                <strong>Answer:</strong> @user.SecurityAnswer<br />
                 <strong>Date Joined:</strong> @user.DateJoined.ToLocalTime().ToString("MMMM dd, yyyy")
+                <strong>Last Login:</strong> @user.LastLogin.ToLocalTime().ToString("MMMM dd, yyyy")
             </p>
             <button class="btn btn-danger" @onclick="Logout">Logout</button>
         </div>
@@ -73,9 +76,9 @@ else
         }
 
         // 3) Redirect to login
-        Nav.NavigateTo("/login", true);
+        RedirectToLogin();
     }
 
     private void RedirectToLogin()
-        => Nav.NavigateTo("/login", true);
+        => Nav.NavigateTo("/auth/login", true);
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -50,7 +51,10 @@ namespace Shared.DTOS
 
     public class LoginDto
     {
+        [Required]
         public string Username { get; set; }
+        [Required]
+        [DataType(DataType.Password)]
         public string Password { get; set; }
     }
 
@@ -67,5 +71,22 @@ namespace Shared.DTOS
         public string RefreshToken { get; set; }
     }
 
+    public class RegisterDto
+    {
+        [Required]
+        public string Username { get; set; } = "";
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = "";
+        [Required]
+        public string Password { get; set; } = "";
+        [Required]
+        [Compare(nameof(Password), ErrorMessage = "Passwords do not match")]
+        public string ConfirmPassword { get; set; } = "";
+        [Required]
+        public string SecurityQuestion { get; set; } = "";
+        [Required]
+        public string SecurityAnswer { get; set; } = "";
+    }
 
 }

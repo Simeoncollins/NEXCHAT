@@ -402,6 +402,14 @@ namespace NEXCHAT.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("SecurityAnswer")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SecurityQuestion")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(10)
@@ -430,6 +438,8 @@ namespace NEXCHAT.Infrastructure.Migrations
                             Phone = "1234567890",
                             PhotoPath = "Uploads/User/bettle.jpg",
                             Roles = "[\"User\"]",
+                            SecurityAnswer = "Jessie",
+                            SecurityQuestion = "What was the name of your first pet?",
                             Status = "Online",
                             UserName = "proximacen10"
                         },
@@ -447,6 +457,8 @@ namespace NEXCHAT.Infrastructure.Migrations
                             Phone = "555-1234",
                             PhotoPath = "Uploads/User/orion.jpg",
                             Roles = "[\"User\"]",
+                            SecurityAnswer = "Jessie",
+                            SecurityQuestion = "What was the name of your first pet?",
                             Status = "Offline",
                             UserName = "astro_photographer"
                         },
@@ -464,6 +476,8 @@ namespace NEXCHAT.Infrastructure.Migrations
                             Phone = "+1-555-9876",
                             PhotoPath = "Uploads/User/ada.jpg",
                             Roles = "[\"User\"]",
+                            SecurityAnswer = "Jessie",
+                            SecurityQuestion = "What was the name of your first pet?",
                             Status = "Offline",
                             UserName = "tech_pioneer"
                         });

@@ -1,0 +1,128 @@
+﻿@page "/auth/signup"
+@using Shared.DTOS
+@inject HttpClient Http
+@inject TokenService TokenSvc
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+@layout Layout.AuthLayout
+
+<main class="min-h-screen flex items-center justify-center px-4 authPage">
+    <div class="w-full max-w-md bg-black/50 backdrop-blur-sm p-8 rounded-lg shadow-lg">
+        <div class="mb-8 text-center">
+            <NavLink href="/" class="logo inline-flex items-center space-x-2">
+                <div class="relative w-12 h-12">
+                    <div class="absolute inset-0 bg-cyan-500 blur-xl opacity-70"></div>
+                    <svg class="text-cyan-400 w-12 h-12" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" />
+                    </svg>
+                </div>
+                <span class="text-3xl font-bold text-gradient font-orbitron">NEXCHAT</span>
+            </NavLink>
+            <h2 class="mt-4 text-2xl font-bold text-white">Login</h2>
+        </div>
+        <!-- Login Form -->
+        <EditForm Model="credentials" class="space-y-6" OnValidSubmit="HandleLogin">
+            <DataAnnotationsValidator />
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-300 mb-1">Email Address</label>
+                <InputText @bind-Value="credentials.Email" class="input-field w-full" id="email" placeholder="Email address" />
+                <ValidationMessage For="() => credentials.Email" class="text-sm text-red-500"></ValidationMessage>
+            </div>
+            <div>
+                <label for="username" class="block text-sm font-medium text-gray-300 mb-1">Username</label>
+                <InputText @bind-Value="credentials.Username" class="input-field w-full" id="username" placeholder="username" />
+                <ValidationMessage For="() => credentials.Username" class="text-sm text-red-500"></ValidationMessage>
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-300 mb-1">Password</label>
+                <InputText @bind-Value="credentials.Password" type="password" class="input-field w-full" id="password" placeholder="Password" />
+                <ValidationMessage For="() => credentials.Password" class="text-sm text-red-500"></ValidationMessage>
+            </div>
+            <div>
+                <label for="confirm" class="block text-sm font-medium text-gray-300 mb-1">Confirm Password</label>
+                <InputText @bind-Value="credentials.ConfirmPassword" type="password" class="input-field w-full" id="confirm" placeholder="Confirm Password" />
+                <ValidationMessage For="() => credentials.Password" class="text-sm text-red-500"></ValidationMessage>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1" for="question">
+                    Select a sequrity question
+                </label>
+                <InputSelect @bind-Value="credentials.SecurityQuestion" class="input-field w-full" id="question">
+                    <option value="">-- Select Question --</option>
+                    @foreach (var question in SecurityQuestions.Questions)
+                    {
+                        <option value="@question">@question</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="@(() => credentials.SecurityQuestion)" class="text-sm text-red-500" />
+            </div>
+
+            <div>
+                <label for="answer" class="block text-sm font-medium text-gray-300 mb-1">Answer</label>
+                <InputText @bind-Value="credentials.SecurityAnswer" class="input-field w-full" id="answer" placeholder="Security answer" />
+                <ValidationMessage For="() => credentials.SecurityAnswer" class="text-sm text-red-500"></ValidationMessage>
+            </div>
+            
+            <div>
+                <button type="submit" class="btn-login w-full" disabled="@isSubmitting">
+                    @(isSubmitting ? "Processing…" : "Register")
+                </button>
+            </div>
+        </EditForm>
+        <!-- Signup Link -->
+        <p class="mt-6 text-center text-sm text-gray-300">
+            Already have an account?
+            <NavLink class="link-signup font-bold" href="/auth/login">
+                Login
+            </NavLink>
+        </p>
+    </div>
+</main>
+<ToastComponent @ref="toastComponent" Timeout="3000" />
+
+@code {
+    private RegisterDto credentials = new();
+    private bool isSubmitting;
+    private string? errorMessage;
+    private ToastComponent? toastComponent;
+
+    private async Task HandleLogin()
+    {
+        isSubmitting = true;
+        errorMessage = null;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/auth/register", credentials);
+            if (response.IsSuccessStatusCode)
+            {
+                Nav.NavigateTo("/auth/login?registered=true");
+            }
+            else
+            {
+                // Read error response
+                var errorObj = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+                errorMessage = errorObj?.Errors != null
+                    ? string.Join("; ", errorObj.Errors)
+                    : "Signup failed.";
+            }
+            
+            if (!string.IsNullOrEmpty(errorMessage))
+            {
+                toastComponent?.ShowToast(ToastType.Danger, "Error!", errorMessage);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+    class ErrorResponse
+    {
+        public string[]? Errors { get; set; }
+    }
+}

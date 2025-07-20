@@ -28,10 +28,43 @@ namespace NEXCHAT.Plugin.EFCore
         public async Task<IdentityResult> CreateAsync(User user, CancellationToken cancellationToken)
         {
             await using var context = await _dbContextFactory.CreateDbContextAsync();
+
+            // Check for existing username or email
+            var existingUser = await context.Users
+                .Where(u => u.UserName == user.UserName || u.Email == user.Email)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (existingUser != null)
+            {
+                var errors = new List<IdentityError>();
+
+                if (existingUser.UserName == user.UserName)
+                {
+                    errors.Add(new IdentityError
+                    {
+                        Code = "DuplicateUserName",
+                        Description = $"Username '{user.UserName}' is already taken."
+                    });
+                }
+
+                if (existingUser.Email == user.Email)
+                {
+                    errors.Add(new IdentityError
+                    {
+                        Code = "DuplicateEmail",
+                        Description = $"Email '{user.Email}' is already registered."
+                    });
+                }
+
+                return IdentityResult.Failed(errors.ToArray());
+            }
+
+            // No conflict, proceed
             context.Users.Add(user);
-            await context.SaveChangesAsync();
+            await context.SaveChangesAsync(cancellationToken);
             return IdentityResult.Success;
         }
+
 
         public async Task<IdentityResult> DeleteAsync(User user, CancellationToken cancellationToken)
         {

@@ -18,6 +18,8 @@ namespace NEXCHAT.CoreBusiness
         public string Phone { get; set; } = string.Empty;
         public string Country { get; set; } = string.Empty;
         public string Bio { get; set; } = string.Empty;
+        public string SecurityQuestion { get; set; } = string.Empty;
+        public string SecurityAnswer { get; set; } = string.Empty;
         public StatusType Status { get; set; } = StatusType.Online;
         public DateTime DateJoined { get; set; } = DateTime.UtcNow;
         public DateTime LastLogin { get; set; } = DateTime.UtcNow;

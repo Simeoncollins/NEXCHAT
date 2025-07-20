@@ -266,6 +266,8 @@ namespace NEXCHAT.Plugin.EFCore
                         Bio = "Aspiring writer and tech innovator...",
                         PhotoPath = "Uploads/User/bettle.jpg",
                         Roles = new List<string> { "User" },
+                        SecurityQuestion = "What was the name of your first pet?",
+                        SecurityAnswer = "Jessie",
                     },
                     new User
                     {
@@ -283,6 +285,8 @@ namespace NEXCHAT.Plugin.EFCore
                         Bio = "Night sky enthusiast and telescope collector",
                         PhotoPath = "Uploads/User/orion.jpg",
                         Roles = new List<string> { "User" },
+                        SecurityQuestion = "What was the name of your first pet?",
+                        SecurityAnswer = "Jessie",
                     },
                     new User
                     {
@@ -300,6 +304,8 @@ namespace NEXCHAT.Plugin.EFCore
                         Bio = "Building the future of communication technology",
                         PhotoPath = "Uploads/User/ada.jpg",
                         Roles = new List<string> { "User" },
+                        SecurityQuestion = "What was the name of your first pet?",
+                        SecurityAnswer = "Jessie",
                     }
                 );
             });

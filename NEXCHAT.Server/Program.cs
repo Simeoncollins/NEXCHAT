@@ -94,7 +94,10 @@ builder.Services
   .AddIdentityCore<User>(options => {
       options.Password.RequiredLength = 8;
       options.Password.RequireDigit = true;
-      // …other options
+      options.Password.RequireLowercase = true;
+      options.Password.RequireUppercase = true;
+      options.Password.RequireNonAlphanumeric = false;
+      options.Password.RequireDigit = true;
   })
   // Tell Identity to use your custom store for IUserStore<User> + IUserPasswordStore<User>:
   .AddUserStore<UserRepositoryEfCore>()

@@ -8,6 +8,8 @@ using Microsoft.IdentityModel.Tokens;
 using NEXCHAT.CoreBusiness;
 using Shared.DTOS;
 using NEXCHAT.UseCases.PluginInterfaces;
+using NEXCHAT.CoreBusiness.Enums;
+using NEXCHAT.UseCases.Users.Interfaces;
 
 namespace NEXCHAT.Server.Controllers
 {
@@ -18,17 +20,20 @@ namespace NEXCHAT.Server.Controllers
         private readonly IUserPasswordStore<User> _userStore;
         private readonly UserManager<User> _userManager;
         private readonly IConfiguration _config;
+        private readonly IUpdateUserStatusUseCase _updateUserStatusUseCase;
         private readonly IRefreshTokenRepository _refreshRepo;      // to save refresh tokens
 
         public AuthController(
           IUserPasswordStore<User> userStore,
           UserManager<User> userManager,
           IConfiguration config,
+          IUpdateUserStatusUseCase updateUserStatusUseCase,
           IRefreshTokenRepository repo)
         {
             _userStore = userStore;
             _userManager = userManager;
             _config = config;
+            _updateUserStatusUseCase = updateUserStatusUseCase;
             _refreshRepo = repo;
         }
 
@@ -42,9 +47,34 @@ namespace NEXCHAT.Server.Controllers
             var accessToken = GenerateJwt(user);
             var refreshToken = Guid.NewGuid().ToString();
             await _refreshRepo.SaveAsync(user.UserId, refreshToken, DateTime.UtcNow.AddDays(30));
-
+            await _updateUserStatusUseCase.ExecuteAsync(user.UserId, StatusType.Online);
             return Ok(new TokenResponseDto {UserId = user.UserId, AccessToken = accessToken, RefreshToken = refreshToken });
         }
+
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] RegisterDto dto)
+        {
+            var user = new User
+            {
+                UserId = Guid.NewGuid(),
+                UserName = dto.Username,
+                Email = dto.Email,
+                SecurityQuestion = dto.SecurityQuestion,
+                SecurityAnswer = dto.SecurityAnswer,
+                DateJoined = DateTime.UtcNow
+            };
+
+            var result = await _userManager.CreateAsync(user, dto.Password);
+
+            if (!result.Succeeded)
+            {
+                var errors = result.Errors.Select(e => e.Description).ToArray();
+                return BadRequest(new { Errors = errors });
+            }
+
+            return Ok(new { Message = "User registered successfully." });
+        }
+
 
         [HttpPost("refresh")]
         public async Task<IActionResult> Refresh([FromBody] RefreshDto dto)
