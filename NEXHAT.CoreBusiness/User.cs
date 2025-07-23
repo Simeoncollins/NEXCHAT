@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -28,5 +29,40 @@ namespace NEXCHAT.CoreBusiness
         public List<Notification> Notifications { get; set; } = new List<Notification>();
         public List<UserFriend> SentFriendRequests { get; set; } = new List<UserFriend>();
         public List<UserFriend> ReceivedFriendRequests { get; set; } = new List<UserFriend>();
+
+        [NotMapped]
+        public bool StrangerRequested { get; set; } = false;
+        public bool isStranger(Guid userId)
+        {
+            var sentRequest = SentFriendRequests.FirstOrDefault(fr =>
+                fr.ReceiverId == userId 
+            );
+
+            if (sentRequest != null)
+            {
+                if (sentRequest.Status == FriendRequestStatus.Pending)
+                {
+                    StrangerRequested = true; 
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+
+            }
+
+            var receivedRequest = ReceivedFriendRequests.FirstOrDefault(fr =>
+                fr.RequesterId == userId
+            );
+
+            if (receivedRequest != null)
+            {
+                return false;               
+            }
+
+            StrangerRequested = false;      
+            return true;                    
+        }
     }
 }

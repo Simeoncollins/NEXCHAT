@@ -1,0 +1,134 @@
+﻿@page "/people"
+@inject AuthenticationStateProvider AuthStateProvider
+@inject HttpClient Http
+@attribute [Authorize]
+
+<main class="flex-grow pt-6 pb-20" style="margin-top: 80px;" data-aos="fade-up">
+    <div class="container mx-auto px-4">
+
+        <!-- Tabs -->
+        @if (user != null)
+        {
+            <div class="flex border-b border-white/10 mb-4" id="peopleTabs">
+                <button class="py-2 px-3 text-white hover:text-cyan-400 transition-colors border-b-2 border-transparent focus:outline-none @tabs[1]"
+                @onclick="() => ChangeTab(1)">
+                    Friends (@friendsCount)
+                </button>
+                <button class="py-2 px-3 text-white hover:text-cyan-400 transition-colors border-b-2 border-transparent focus:outline-none @tabs[2]"
+                @onclick="() => ChangeTab(2)">
+                    Friend Requests (@requestsCount)
+                </button>
+                <button class="py-2 px-3 text-white hover:text-cyan-400 transition-colors border-b-2 border-transparent focus:outline-none @tabs[3]"
+                @onclick="() => ChangeTab(3)">
+                    People
+                </button>
+            </div>
+
+            <div class="tab-content @content[1]">
+                <FriendsListComponent @ref="friendsListRef" OnError="HandleError" UserId="user.UserId" OnListRetrived="HandleFriendsRetrived" />
+            </div>
+
+            <div class="tab-content @content[2]">
+                <RequetsListComponent OnError="HandleError" UserId="user.UserId" OnListRetrived="HandleRequestRetrived" OnRequestAccepted="HandleRequestAccepted" />
+            </div>
+
+            <div class="tab-content @content[3]">
+                <PeopleListComponent OnError="HandleError" UserId="user.UserId"/>
+            </div>
+        }
+    </div>
+</main>
+<ToastComponent @ref="toastComponent" Timeout="3000" />
+@code {
+    private User? user;
+    private Dictionary<int, string> tabs = new Dictionary<int, string>
+        {
+            [1] = "tab-active",
+            [2] = "",
+            [3] = ""
+        };
+
+    private Dictionary<int, string> content = new Dictionary<int, string>
+        {
+            [1] = "block",
+            [2] = "hidden",
+            [3] = "hidden"
+        };
+    private ToastComponent? toastComponent;
+    private FriendsListComponent? friendsListRef;
+
+    private int friendsCount = 0;
+    private int requestsCount = 0;
+
+    private void HandleQuery(string query)
+    {
+
+    }
+
+    private async Task HandleRequestAccepted()
+    {
+        if (friendsListRef != null)
+        {
+            await friendsListRef.GetFriendsAsync();
+        }
+        requestsCount -= 1;
+    }
+    private void HandleFriendsRetrived(int count)
+    {
+        friendsCount = count;
+    }
+    private void HandleRequestRetrived(int count)
+    {
+        requestsCount = count;
+    }
+    private void HandleError(string message)
+    {
+        toastComponent?.ShowToast(ToastType.Danger, "Error!", message);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userIdClaim = auth.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            return;
+        }
+
+        try
+        {
+            user = await Http.GetFromJsonAsync<User>($"api/users/{userId}");
+        }
+        catch
+        {
+            user = null;
+        }
+
+    }
+
+    private void ChangeTab(int tabIndex)
+    {
+        foreach (var tab in tabs)
+        {
+            if (tab.Key == tabIndex)
+            {
+                tabs[tab.Key] = "tab-active";
+            }
+            else
+            {
+                tabs[tab.Key] = "";
+            }
+        }
+        foreach (var conte in content)
+        {
+            if (conte.Key == tabIndex)
+            {
+                content[conte.Key] = "block";
+            }
+            else
+            {
+                content[conte.Key] = "hidden";
+            }
+        }
+    }
+}

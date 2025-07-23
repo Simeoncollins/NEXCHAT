@@ -1,9 +1,10 @@
 ﻿using NEXCHAT.CoreBusiness;
+using NEXCHAT.CoreBusiness.Classes;
 
 namespace NEXCHAT.UseCases.FriendManagement.Interfaces
 {
     public interface IGetBlockedFriendsUseCase
     {
-        Task<IEnumerable<User>> ExecuteAsync(Guid userId);
+        Task<IEnumerable<FriendDto>> ExecuteAsync(Guid userId);
     }
 }

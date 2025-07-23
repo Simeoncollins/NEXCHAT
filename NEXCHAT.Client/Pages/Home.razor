@@ -1,42 +1,177 @@
 ﻿@page "/"
-@inject HttpClient http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject HttpClient Http
 @attribute [Authorize]
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Direct messages</PageTitle>
 
-<h1>Hello, world!</h1>
+<main class="flex-grow pt-6 pb-20" style="margin-top: 80px;" data-aos="fade-up">
+	<div class="container mx-auto px-4 py-2">
+		<ChatSearchComponent OnQueryEntered="HandleQuery"></ChatSearchComponent>
+		<!-- Page Title and New Chat Icon -->
+		<div class="flex items-center justify-between mb-6 space-x-3">
+			@if(isFriednsLoading)
+			{
+				<div class="overflow-x-auto flex space-x-4 py-2">
+					<span class="skeleton-avatar"></span>
+					<span class="skeleton-avatar"></span>
+					<span class="skeleton-avatar"></span>
+					<span class="skeleton-avatar"></span>
+					<span class="skeleton-avatar"></span>
+					<span class="skeleton-avatar"></span>
+					<span class="skeleton-avatar"></span>
+				</div>
+			}
+			else if (!isFriednsLoading && friends != null && friends.Count > 0)
+			{
+				<div class="overflow-x-auto flex space-x-4 py-2">
 
-Welcome to your new app.
-<table>
-	<tr>
-		<th>Id</th>
-		<th>Name</th>
-		<th>Url</th>
-	</tr>
-	@if(_reactions is not null){
-		foreach(var reaction in _reactions){
-			<tr>
-				<td>@reaction.ReactionId</td>
-				<td>@reaction.ReactionName</td>
-				<td>
-					<dotlottie-player src="@reaction.EmojiPath" background="transparent" speed="1" class="emoji" loop autoplay></dotlottie-player>
-				</td>
-			</tr>
-		}
-	}
-	else{
-		<tr>
-			<td colspan="3" align="center">No emojis available</td>
-		</tr>
-	}
-</table>
+					@foreach (var friend in friends)
+					{
+						<NavLink href="@($"/chat/{ GuidCombiner.CombineGuids(user.UserId,friend.UserId)}")">
+							<UserImageComponent 
+							Src="@(string.IsNullOrEmpty(friend.PhotoPath) ? friend.UserName.Substring(0, 2).ToUpper() : friend.PhotoPath)"
+							UserStatus="friend.Status" />
+						</NavLink>
+					}
+				</div>
+				<!-- New Chat Button -->
 
+				<NavLink href="/people" Match="NavLinkMatch.All" class="text-white hover:text-cyan-400 transition-colors">
+					<i class="fas fa-arrow-right"></i>
+				</NavLink>
+			}
+
+		</div>
+
+		<!-- Chat List -->
+		<div class="space-y-2">
+			@if(isConvLoading)
+			{
+				<ChatSkeletonLoadingComponent />
+				<ChatSkeletonLoadingComponent />
+				<ChatSkeletonLoadingComponent />
+				<ChatSkeletonLoadingComponent />
+				<ChatSkeletonLoadingComponent />
+				<ChatSkeletonLoadingComponent />
+				<ChatSkeletonLoadingComponent />
+			}
+
+			else if(!isConvLoading && conversations != null && conversations.Count > 0){
+				foreach(var conv in conversations)
+				{
+					<div class="chat-list-item flex items-center p-3 rounded-lg cursor-pointer">
+						<NavLink href="@($"/profile/{conv.ConversationParticipants[0].UserId}")" class="z-10">
+							<UserImageComponent 
+							Src="@(string.IsNullOrEmpty(conv.ConversationParticipants[0].User.PhotoPath) ? conv.ConversationParticipants[0].User.UserName.Substring(0, 2).ToUpper() : conv.ConversationParticipants[0].User.PhotoPath)"
+							UserStatus="conv.ConversationParticipants[0].User.Status" />
+						</NavLink>
+
+						<NavLink href="@($"/chat/{conv.ConversationId}")">
+							<div class="flex-grow">
+								<div class="flex items-center justify-between">
+									<span class="font-bold">@conv.ConversationParticipants[0].User.UserName</span>
+									@if (conv.LastMessage.DateSentUTC.Day == DateTime.UtcNow.Day)
+									{
+										<small class="text-gray-400">@conv.LastMessage.DateSentUTC.ToLocalTime().ToString("hh:mm tt")</small>
+									}
+									else
+									{
+										if (conv.LastMessage.DateSentUTC.Year == DateTime.UtcNow.Year)
+										{
+											<small class="text-gray-400">@conv.LastMessage.DateSentUTC.ToLocalTime().ToString("MMM dd")</small>
+										}
+										else{
+											<small class="text-gray-400">@conv.LastMessage.DateSentUTC.ToLocalTime().ToString("MMM dd yyyy")</small>
+										}
+									}
+								</div>
+								<p class="text-sm text-gray-300">@conv.LastMessage.Content</p>
+							</div>
+							@if (conv.UnreadMessagesCount > 0)
+							{
+								<span class="unread-badge ml-3">@conv.UnreadMessagesCount</span>
+
+							}
+						</NavLink>
+					</div>
+				}
+			}
+			else{
+				<div class="text-center text-gray-500">
+					<p>
+						No conversations found. add new friends and start chatting!
+						<NavLink href="/people" Match="NavLinkMatch.All" class="text-cyan-400">
+							<i class="fas fa-arrow-right"></i>
+						</NavLink>
+					</p>
+				</div>
+			}
+
+
+		</div>
+	</div>
+</main>
+<ToastComponent @ref="toastComponent" Timeout="3000" />
 @code
 {
-	private List<Reaction>? _reactions;
+	private User? user;
+	private List<FriendDto>? friends = new();
+	private List<Conversation>? conversations = new();
+	private bool isFriednsLoading = true;
+	private bool isConvLoading = true;
+	private ToastComponent? toastComponent;
+
+	private void HandleQuery(string query)
+	{
+
+	}
 
 	protected override async Task OnInitializedAsync()
 	{
-		_reactions = await http.GetFromJsonAsync<List<Reaction>>("api/reactions");
-	}
+		var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+		var userIdClaim = auth.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+		if (!Guid.TryParse(userIdClaim, out var userId))
+		{
+			isFriednsLoading = false;
+			isConvLoading = false;
+			return;
+		}
+
+		try
+		{
+			user = await Http.GetFromJsonAsync<User>($"api/users/{userId}");
+		}
+		catch
+		{
+			user = null;
+		}
+		if(user != null)
+		{
+			try
+			{
+				friends = await Http.GetFromJsonAsync<List<FriendDto>>($"api/friends/{userId}");
+			}
+			catch
+			{
+				toastComponent?.ShowToast(ToastType.Danger, "Error!", "Error getting friends");
+			}
+			finally
+			{
+				isFriednsLoading = false;
+			}
+			try
+			{
+				conversations = await Http.GetFromJsonAsync<List<Conversation>>($"api/conversations/user/{userId}");
+			}
+			catch
+			{
+				toastComponent?.ShowToast(ToastType.Danger, "Error!", "Error getting conversations");
+			}
+			finally
+			{
+				isConvLoading = false;
+			}
+        }
+    }
 }

@@ -107,7 +107,7 @@
                         jwtProv.NotifyUserAuthentication(tokens.AccessToken);
                     }
 
-                    Nav.NavigateTo("/dashboard");
+                    Nav.NavigateTo("/");
                 }
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)

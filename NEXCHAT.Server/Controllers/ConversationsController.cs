@@ -58,8 +58,6 @@ namespace NEXCHAT.Server.Controllers
         public async Task<ActionResult<Conversation>> GetConversation(Guid id)
         {
             var conversation = await getConversationUseCase.ExecuteAsync(id);
-            if (conversation == null)
-                return NotFound();
 
             return Ok(conversation);
         }

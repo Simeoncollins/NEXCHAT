@@ -1,0 +1,22 @@
+﻿@page "/auth/logout"
+@inject AuthenticationStateProvider AuthStateProvider
+@inject TokenService TokenSvc
+@inject NavigationManager Nav
+
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        // 1) Clear tokens
+        await TokenSvc.RemoveAsync();
+
+        // 2) Notify auth provider of anonymous user
+        if (AuthStateProvider is JwtAuthStateProvider jwtProv)
+        {
+            jwtProv.NotifyUserLogout();
+        }
+
+        // 3) Redirect to login
+        Nav.NavigateTo("/auth/login", true);
+    }
+}

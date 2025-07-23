@@ -55,9 +55,7 @@ namespace NEXCHAT.Plugin.EFCore
             foreach (var item in conversations)
             {
                 item.Conversation.UnreadMessagesCount = item.UnreadCount;
-                item.Conversation.Messages = item.LastMessage != null
-                    ? new List<Message> { item.LastMessage }
-                    : new List<Message>();
+                item.Conversation.LastMessage = item.LastMessage;
             }
 
             return conversations.Select(x => x.Conversation).ToList();

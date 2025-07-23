@@ -1,4 +1,5 @@
 ﻿@page "/dashboard"
+@using NEXCHAT.CoreBusiness.Classes
 @inject AuthenticationStateProvider AuthStateProvider
 @inject TokenService TokenSvc
 @inject NavigationManager Nav
@@ -31,6 +32,8 @@ else
                 <strong>Date Joined:</strong> @user.DateJoined.ToLocalTime().ToString("MMMM dd, yyyy")
                 <strong>Last Login:</strong> @user.LastLogin.ToLocalTime().ToString("MMMM dd, yyyy")
             </p>
+            <p>guid1 + guid2 = @GuidCombiner.CombineGuids(guid1, guid2);</p>
+            <p>guid2 + guid1 = @GuidCombiner.CombineGuids(guid2, guid1);</p>
             <button class="btn btn-danger" @onclick="Logout">Logout</button>
         </div>
     </div>
@@ -39,6 +42,8 @@ else
 @code {
     private User? user;
     private bool isLoading = true;
+    private Guid guid1 = Guid.Parse("2bb77c68-06f5-4e13-b0a2-a6bc61fabbf9");
+    private Guid guid2 = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
     protected override async Task OnInitializedAsync()
     {

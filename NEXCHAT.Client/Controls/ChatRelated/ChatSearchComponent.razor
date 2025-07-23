@@ -1,0 +1,20 @@
+﻿<div class="relative mb-6">
+    <input @oninput="OnSearchInput" value="@_searchQuery" type="text" placeholder="@SearchPlaceholder" class="w-full bg-gray-800 text-white rounded-full pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-400 transition-colors" />
+    <i class="fas fa-search absolute left-5 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+</div>
+
+@code {
+    [Parameter]
+    public EventCallback<string> OnQueryEntered { get; set; }
+    private string _searchQuery = string.Empty;
+
+    [Parameter]
+    public string SearchPlaceholder { get; set; } = "search...";
+
+    private async void OnSearchInput(ChangeEventArgs e)
+    {
+        _searchQuery = e.Value?.ToString() ?? string.Empty;
+
+        await OnQueryEntered.InvokeAsync(_searchQuery);
+    }
+}

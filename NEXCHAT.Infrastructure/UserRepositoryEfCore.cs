@@ -10,6 +10,7 @@ using NEXCHAT.UseCases.PluginInterfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.VisualBasic;
 using NEXCHAT.CoreBusiness.Interfaces;
+using NEXCHAT.CoreBusiness.Classes;
 
 namespace NEXCHAT.Plugin.EFCore
 {
@@ -204,11 +205,11 @@ namespace NEXCHAT.Plugin.EFCore
             await context.SaveChangesAsync();
         }
 
-        public async Task AcceptFriendRequestAsync(Guid friendRequestId)
+        public async Task AcceptFriendRequestAsync(Guid requesterId, Guid receiverId)
         {
             await using var context = await _dbContextFactory.CreateDbContextAsync();
 
-            var request = await context.UserFriends.FindAsync(friendRequestId);
+            var request = await context.UserFriends.FindAsync(requesterId, receiverId);
             if (request != null)
             {
                 request.Status = FriendRequestStatus.Accepted;
@@ -216,15 +217,23 @@ namespace NEXCHAT.Plugin.EFCore
             }
         }
 
-        public async Task<IEnumerable<User>> GetFriendListAsync(Guid userId)
+        public async Task<IEnumerable<FriendDto>> GetFriendListAsync(Guid userId)
         {
             await using var context = await _dbContextFactory.CreateDbContextAsync();
 
             return await context.UserFriends
-                .Where(uf => (uf.RequesterId == userId || uf.ReceiverId == userId) &&
-                             uf.Status == FriendRequestStatus.Accepted)
-                .Select(uf => uf.RequesterId == userId ? uf.Receiver : uf.Requester)
-                .ToListAsync();
+        .Where(uf => (uf.RequesterId == userId || uf.ReceiverId == userId) &&
+                     uf.Status == FriendRequestStatus.Accepted || uf.Status == FriendRequestStatus.Blocked)
+        .Select(uf => new FriendDto(
+            uf.RequesterId == userId ? uf.ReceiverId : uf.RequesterId,
+            uf.RequesterId == userId ? uf.Receiver.UserName : uf.Requester.UserName,
+            uf.RequesterId == userId ? uf.Receiver.Email : uf.Requester.UserName,
+            uf.RequesterId == userId ? uf.Receiver.Status : uf.Requester.Status,
+            uf.RequesterId == userId ? uf.Receiver.PhotoPath : uf.Requester.PhotoPath,
+            false,
+            uf.Status == FriendRequestStatus.Blocked? true : false
+        ))
+        .ToListAsync();
         }
 
         public async Task BlockFriendAsync(Guid userId, Guid friendId)
@@ -245,19 +254,26 @@ namespace NEXCHAT.Plugin.EFCore
             await context.SaveChangesAsync();
         }
 
-        public async Task<IEnumerable<User>> GetBlockedFriendsAsync(Guid userId)
+        public async Task<IEnumerable<FriendDto>> GetBlockedFriendsAsync(Guid userId)
         {
             await using var context = await _dbContextFactory.CreateDbContextAsync();
 
             return await context.UserFriends
                 .Where(uf => (uf.RequesterId == userId || uf.ReceiverId == userId) &&
                              uf.Status == FriendRequestStatus.Blocked)
-                .Select(uf => uf.RequesterId == userId ? uf.Receiver : uf.Requester)
+                .Select(uf => new FriendDto(
+                    uf.RequesterId == userId ? uf.ReceiverId : uf.RequesterId,
+                    uf.RequesterId == userId ? uf.Receiver.UserName : uf.Requester.UserName,
+                    uf.RequesterId == userId ? uf.Receiver.Email : uf.Requester.UserName,
+                    uf.RequesterId == userId ? uf.Receiver.Status : uf.Requester.Status,
+                    uf.RequesterId == userId ? uf.Receiver.PhotoPath : uf.Requester.PhotoPath,
+                    false, false
+                ))
                 .AsNoTracking()
                 .ToListAsync();
         }
 
-        public async Task<IEnumerable<User>> GetPendingFriendRequestsAsync(Guid userId)
+        public async Task<IEnumerable<FriendDto>> GetPendingFriendRequestsAsync(Guid userId)
         {
             await using var context = await _dbContextFactory.CreateDbContextAsync();
 
@@ -265,7 +281,14 @@ namespace NEXCHAT.Plugin.EFCore
                 .Where(uf => uf.ReceiverId == userId &&
                              uf.Status == FriendRequestStatus.Pending)
                 .Include(uf => uf.Requester)
-                .Select(uf => uf.Requester)
+                .Select(uf => new FriendDto(
+                    uf.RequesterId,
+                    uf.Requester.UserName,
+                    uf.Requester.UserName,
+                    uf.Requester.Status,
+                    uf.Requester.PhotoPath,
+                    false, false
+                ))
                 .AsNoTracking()
                 .ToListAsync();
         }
@@ -281,14 +304,14 @@ namespace NEXCHAT.Plugin.EFCore
                 .FirstOrDefaultAsync(u => u.UserId == userId);
         }
 
-        public async Task RejectFriendRequestAsync(Guid friendRequestId)
+        public async Task RejectFriendRequestAsync(Guid requesterId, Guid receiverId)
         {
             await using var context = await _dbContextFactory.CreateDbContextAsync();
 
-            var request = await context.UserFriends.FindAsync(friendRequestId);
+            var request = await context.UserFriends.FindAsync(requesterId, receiverId);
             if (request != null)
             {
-                request.Status = FriendRequestStatus.Rejected;
+                context.UserFriends.Remove(request);
                 await context.SaveChangesAsync();
             }
         }

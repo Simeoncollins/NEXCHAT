@@ -1,0 +1,129 @@
+﻿@page "/chat/{conversationId:guid}"
+@layout Layout.AuthLayout
+<div class="flex items-center space-x-4 py-4 px-8 border-b border-white/10 fixed w-full top-0 backdrop-blur-lg">
+    <!-- Back Button -->
+    <button class="text-white hover:text-cyan-400 transition-colors text-2xl focus:outline-none"
+            onclick="window.history.back()">
+        <i class="fas fa-arrow-left"></i>
+    </button>
+    <!-- Clickable profile pic (other user) -->
+    <a href="profile-other.html" class="min-fit">
+        <img src="../images/class.jpg"
+             alt="Other User Profile"
+             class="w-16 h-16 rounded-full border border-white/20 object-cover" />
+    </a>
+    <!-- Username and stats -->
+    <div>
+        <a href="profile-other.html" class="font-bold text-xl hover:underline">
+            sweetpeaywohd
+        </a>
+        <p class="text-gray-400 text-sm">66 following • 43 followers</p>
+    </div>
+</div>
+	<main class="flex-grow pb-20" style="margin-top: 120px;">
+		<div class="container mx-auto px-4 py-2">
+            <div class="container mx-auto px-4">
+                <!-- Profile Header within the chat -->
+            
+
+                <!-- Chat Timestamp -->
+                <div class="chat-date">
+                    February 21, 2025, 2:22 AM
+                </div>
+
+                <!-- Chat Messages Container -->
+                <div class="space-y-4 mb-16">
+                    <!-- Example: Other User's message (left) with profile pic -->
+                    <div class="flex items-start space-x-2">
+                        <!-- Profile pic clickable -->
+                        <a href="profile-other.html" class="min-fit">
+                            <img src="../images/class.jpg" alt="Other User" class="w-10 h-10 rounded-full object-cover border border-white/20">
+                        </a>
+                        <div>
+                            <div class="chat-bubble chat-bubble-left">
+                                <p>babe?😂😂</p>
+                            </div>
+                            <small class="message-timestamp ml-2">2:20 AM</small>
+                        </div>
+                    </div>
+
+                    <!-- Another from other user (left) -->
+                    <div class="flex items-start space-x-2">
+                        <a href="profile-other.html" class="min-fit">
+                            <img src="../images/class.jpg" alt="Other User" class="w-10 h-10 rounded-full object-cover border border-white/20">
+                        </a>
+                        <div>
+                            <div class="chat-bubble chat-bubble-left">
+                                <p>Kash</p>
+                            </div>
+                            <small class="message-timestamp ml-2">2:21 AM</small>
+                        </div>
+                    </div>
+
+                    <!-- Current User's message (right) -->
+                    <div class="flex flex-col items-end">
+                        <div class="chat-bubble chat-bubble-right">
+                            <p>bello😟</p>
+                        </div>
+                        <small class="message-timestamp">2:22 AM</small>
+                    </div>
+
+                    <!-- Another from current user (right) -->
+                    <div class="flex flex-col items-end">
+                        <div class="chat-bubble chat-bubble-right">
+                            <p>Jesus 🤣🤣.. I dey look for the message place</p>
+                        </div>
+                        <small class="message-timestamp">2:23 AM</small>
+                    </div>
+
+                    <!-- Another from current user (right) -->
+                    <div class="flex flex-col items-end">
+                        <div class="chat-bubble chat-bubble-right">
+                            <p>if no be notification wey popup wey I click</p>
+                        </div>
+                        <small class="message-timestamp">2:24 AM</small>
+                    </div>
+
+                    <!-- SENT IMAGE (current user) -->
+                    <div class="flex flex-col items-end">
+                        <div class="chat-bubble chat-bubble-right">
+                            
+                                <p>Some text describing this sent image.</p>
+                        </div>
+                        <small class="message-timestamp">2:25 AM</small>
+                    </div>
+
+                    <!-- RECEIVED IMAGE (other user) + Additional Text -->
+                    <div class="flex items-start space-x-2">
+                        <a href="profile-other.html" class="min-fit">
+                            <img src="../images/class.jpg" alt="Other User" class="w-10 h-10 rounded-full object-cover border border-white/20">
+                        </a>
+                        <div>
+                            <div class="chat-bubble chat-bubble-left">
+                                
+                                    <p>Here’s an image plus some text underneath.</p>
+                            </div>
+                            <small class="message-timestamp ml-2">2:26 AM</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+		</div>
+	</main>
+
+    <div class="fixed bottom-0 w-full bg-black/80 backdrop-blur-lg border-t border-white/10">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex items-center space-x-2">
+                <input type="text"
+                       placeholder="Send a message..."
+                       class="flex-grow bg-black/30 border border-cyan-400/20 rounded-full px-4 py-2 text-white focus:border-cyan-400 focus:outline-none" />
+                <button class="text-white hover:text-cyan-400 transition-colors">
+                    <i class="fas fa-paper-plane text-xl"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+@code {
+	[Parameter]
+	public Guid conversationId { get; set; }
+}

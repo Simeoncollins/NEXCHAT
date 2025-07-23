@@ -17,9 +17,9 @@ namespace NEXCHAT.UseCases.FriendManagement
             this.iUserRepository = iUserRepository;
         }
 
-        public async Task ExecuteAsync(Guid friendRequestId)
+        public async Task ExecuteAsync(Guid requesterId, Guid receiverId)
         {
-            await iUserRepository.RejectFriendRequestAsync(friendRequestId);
+            await iUserRepository.RejectFriendRequestAsync(requesterId, receiverId);
         }
     }
 }

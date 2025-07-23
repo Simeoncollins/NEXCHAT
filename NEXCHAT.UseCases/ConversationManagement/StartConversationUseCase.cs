@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NEXCHAT.CoreBusiness;
+using NEXCHAT.CoreBusiness.Classes;
 using NEXCHAT.UseCases.ConversationManagement.Interfaces;
 using NEXCHAT.UseCases.PluginInterfaces;
 
@@ -22,6 +23,10 @@ namespace NEXCHAT.UseCases.ConversationManagement
         {
             var conversationParticipants = new List<ConversationParticipant>();
             var conversationId = Guid.NewGuid();
+            if (!isGroup)
+            {
+                conversationId = GuidCombiner.CombineGuids(creatorId, initialParticipantsId.FirstOrDefault());
+            }
             foreach (var participant in initialParticipantsId)
             {
                 conversationParticipants.Add(new ConversationParticipant()
