@@ -2,7 +2,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject HttpClient Http
 @attribute [Authorize]
-
+<PageTitle>People</PageTitle>
 <main class="flex-grow pt-6 pb-20" style="margin-top: 80px;" data-aos="fade-up">
     <div class="container mx-auto px-4">
 
@@ -97,7 +97,7 @@
 
         try
         {
-            user = await Http.GetFromJsonAsync<User>($"api/users/{userId}");
+            user = await Http.GetFromJsonAsync<User>($"api/users/{userId}/basic");
         }
         catch
         {

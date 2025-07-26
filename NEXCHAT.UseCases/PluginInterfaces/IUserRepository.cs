@@ -18,6 +18,7 @@ namespace NEXCHAT.UseCases.PluginInterfaces
         Task<IEnumerable<FriendDto>> GetPendingFriendRequestsAsync(Guid userId);
         Task<User> GetUserByIdAsync(Guid userId);
         Task<IEnumerable<User>> GetUsersByNameAsync(string name, int pageIndex, int pageSize);
+        Task<bool> IsBlockedByFriendAsync(Guid userId, Guid friendId);
         Task RejectFriendRequestAsync(Guid requesterId, Guid receiverId);
         Task SendFriendRequestAsync(Guid requesterId, Guid receiverId);
         Task UnBlockFriendAsync(Guid userId, Guid friendId);

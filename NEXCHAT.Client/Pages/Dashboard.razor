@@ -57,7 +57,7 @@ else
 
         try
         {
-            user = await Http.GetFromJsonAsync<User>($"api/users/{userId}");
+            user = await Http.GetFromJsonAsync<User>($"api/users/{userId}/basic");
         }
         catch
         {

@@ -108,6 +108,11 @@ namespace NEXCHAT.Plugin.EFCore
             await using var context = await _dbContextFactory.CreateDbContextAsync();
             await context.Conversations.AddAsync(conversation);
             await context.SaveChangesAsync();
+            foreach (var participant in conversation.ConversationParticipants)
+            {
+                if (participant.UserId != conversation.CreatorId)
+                    await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "ConversationStarted", conversation);
+            }
             return conversation.ConversationId;
         }
 

@@ -64,5 +64,45 @@ namespace NEXCHAT.CoreBusiness
             StrangerRequested = false;      
             return true;                    
         }
+
+        public bool isFriend(Guid userId)
+        {
+            var friendFromSentReguest = SentFriendRequests.FirstOrDefault(fr =>
+                fr.ReceiverId == userId && fr.Status == FriendRequestStatus.Accepted
+            );
+            if( friendFromSentReguest != null )
+            {
+                return true;
+            }
+
+            var friendFromAcceptedRequest = ReceivedFriendRequests.FirstOrDefault(fr =>
+                fr.RequesterId == userId && fr.Status == FriendRequestStatus.Accepted
+            );
+            if (friendFromAcceptedRequest != null)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public bool isFriendBlocked(Guid userId)
+        {
+            var blockedFriendFromSentReguest = SentFriendRequests.FirstOrDefault(fr =>
+                fr.ReceiverId == userId && fr.Status == FriendRequestStatus.Blocked
+            );
+            if (blockedFriendFromSentReguest != null)
+            {
+                return true;
+            }
+
+            var friendFromAcceptedRequest = ReceivedFriendRequests.FirstOrDefault(fr =>
+                fr.RequesterId == userId && fr.Status == FriendRequestStatus.Blocked
+            );
+            if (friendFromAcceptedRequest != null)
+            {
+                return true;
+            }
+            return false;
+        }
     }
 }

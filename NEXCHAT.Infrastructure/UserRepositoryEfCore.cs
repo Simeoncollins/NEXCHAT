@@ -105,10 +105,7 @@ namespace NEXCHAT.Plugin.EFCore
         public async Task<User> FindByIdAsync(string userId, CancellationToken cancellationToken)
         {
             await using var context = await _dbContextFactory.CreateDbContextAsync();
-            return await context.Users
-                .Include(u => u.SentFriendRequests)
-                .Include(u => u.ReceivedFriendRequests)
-                .FirstOrDefaultAsync(u => u.UserId.ToString() == userId);
+            return await context.Users.FirstOrDefaultAsync(u => u.UserId.ToString() == userId);
         }
 
         public async Task<User> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)
@@ -353,6 +350,17 @@ namespace NEXCHAT.Plugin.EFCore
                     await _notifier.NotifyGroupAsync($"user-{friend.UserId}", "UserStatusChanged", true);
                 }
             }
+        }
+
+        public async Task<bool> IsBlockedByFriendAsync(Guid userId, Guid friendId)
+        {
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
+            var friend = await context.UserFriends.FindAsync(userId, friendId);
+            if(friend != null && friend.Status == FriendRequestStatus.Blocked)
+            {
+                return true;
+            }
+            return false;
         }
     }
 }

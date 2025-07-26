@@ -19,19 +19,19 @@ namespace NEXCHAT.UseCases.ConversationManagement
             this.iConversationRepository = iConversationRepository;
         }
 
-        public async Task<Guid> ExecuteAsync(Guid creatorId, List<Guid> initialParticipantsId, bool isGroup, string groupName = "")
+        public async Task<Guid> ExecuteAsync(Guid creatorId, Guid conversationId, List<Guid> initialParticipantsId, bool isGroup, Message message, string groupName = "")
         {
             var conversationParticipants = new List<ConversationParticipant>();
-            var conversationId = Guid.NewGuid();
-            if (!isGroup)
+            var messages = new List<Message>
             {
-                conversationId = GuidCombiner.CombineGuids(creatorId, initialParticipantsId.FirstOrDefault());
-            }
+                message
+            };
+            
             foreach (var participant in initialParticipantsId)
             {
                 conversationParticipants.Add(new ConversationParticipant()
                 {
-                    UserId = creatorId,
+                    UserId = participant,
                     ConversationId = conversationId
                 });
             }
@@ -41,7 +41,9 @@ namespace NEXCHAT.UseCases.ConversationManagement
                 CreatorId = creatorId,
                 DateStartedUTC = DateTime.UtcNow,
                 GroupName = groupName,
-                ConversationParticipants = conversationParticipants
+                ConversationParticipants = conversationParticipants,
+                Messages = messages
+                
             };
             return await iConversationRepository.StartConversationAsync(conversation);
         }

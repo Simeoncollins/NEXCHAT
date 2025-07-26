@@ -36,7 +36,7 @@ else
 }
 
 @code {
-    public List<FriendDto>? friends { get; set; } = new();
+    private List<FriendDto>? friends = new();
     private List<FriendDto> allFriends = new(); // holds the unfiltered list
 
     [Parameter]

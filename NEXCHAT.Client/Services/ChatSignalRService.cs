@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.SignalR.Client;
+﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.SignalR.Client;
 using NEXCHAT.CoreBusiness;
 using NEXCHAT.CoreBusiness.Classes;
 
@@ -8,27 +9,35 @@ namespace NEXCHAT.Client.Services
     {
         private HubConnection? _hubConnection;
         private TokenService? _tokenService;
+        private readonly NavigationManager _navigation;
 
         public event Action<Message>? OnMessageReceived;
         public event Action<bool>? OnMessageDeleted;
         public event Action<bool>? OnMessageEdited;
         public event Action<bool>? OnMessageDelivered;
-        public event Action<bool>? OnMessageSeen;
+        public event Action<MessageSeen>? OnMessageSeen;
         public event Action<ReactionEvent>? OnReactionReceived;
         public event Action<bool>? OnReactionRemoved;
         public event Action<bool>? OnTypingUsers;
         public event Action<Notification>? OnNotificationRecieved;
+        public event Action<Conversation>? OnConversationStarted;
         public event Action<bool>? OnUserStatusChanged;
 
         public bool IsConnected => _hubConnection?.State == HubConnectionState.Connected;
 
+        public ChatSignalRService(TokenService tokenService, NavigationManager navigation)
+        {
+            _tokenService = tokenService;
+            _navigation = navigation;
+        }
         public async Task ConnectAsync(Guid userId)
         {
             if (_hubConnection is { State: HubConnectionState.Connected or HubConnectionState.Connecting })
                 return;
 
+            var hubUri = _navigation.ToAbsoluteUri($"/chatHub?userId={userId}");
             _hubConnection = new HubConnectionBuilder()
-              .WithUrl("/chatHub", options =>
+              .WithUrl(hubUri, options =>
               {
                   options.AccessTokenProvider = async () =>
                   {
@@ -48,6 +57,10 @@ namespace NEXCHAT.Client.Services
 
         private void RegisterEventHandlers()
         {
+            _hubConnection.On<Conversation>("ConversationStarted", conversation =>
+            {
+                OnConversationStarted?.Invoke(conversation);
+            });
             _hubConnection.On<Message>("MessageReceived", message =>
             {
                 OnMessageReceived?.Invoke(message);
@@ -68,7 +81,7 @@ namespace NEXCHAT.Client.Services
                 OnMessageDelivered?.Invoke(delivered);
             });
 
-            _hubConnection.On<bool>("MessagesSeen", seen =>
+            _hubConnection.On<MessageSeen>("MessagesSeen", seen =>
             {
                 OnMessageSeen?.Invoke(seen);
             });

@@ -29,8 +29,8 @@ else
 }
 
 @code {
-    public List<FriendDto>? requests { get; set; } = new();
-    public List<FriendDto> allRequests { get; set; } = new();
+    private List<FriendDto>? requests = new();
+    private List<FriendDto> allRequests = new();
     [Parameter]
     public Guid UserId { get; set; }
     [Parameter]

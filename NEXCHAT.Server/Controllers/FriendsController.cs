@@ -23,6 +23,7 @@ namespace NEXCHAT.Server.Controllers
         private readonly IUnBlockFriendUseCase unBlockFriendUseCase;
         private readonly IGetUsersByNameUseCase getUsersByNameUseCase;
         private readonly IGetUserByIdUseCase getUserByIdUseCase;
+        private readonly ICheckIfBlockedByFriendUseCase checkIfBlockedByFriendUseCase;
 
         public FriendsController
             (
@@ -35,7 +36,8 @@ namespace NEXCHAT.Server.Controllers
             ISendFriendRequestUseCase sendFriendRequestUseCase,
             IUnBlockFriendUseCase unBlockFriendUseCase,
             IGetUsersByNameUseCase getUsersByNameUseCase,
-            IGetUserByIdUseCase getUserByIdUseCase
+            IGetUserByIdUseCase getUserByIdUseCase,
+            ICheckIfBlockedByFriendUseCase checkIfBlockedByFriendUseCase
             )
         {
             this.acceptFriendRequestUseCase = acceptFriendRequestUseCase;
@@ -48,6 +50,7 @@ namespace NEXCHAT.Server.Controllers
             this.unBlockFriendUseCase = unBlockFriendUseCase;
             this.getUsersByNameUseCase = getUsersByNameUseCase;
             this.getUserByIdUseCase = getUserByIdUseCase;
+            this.checkIfBlockedByFriendUseCase = checkIfBlockedByFriendUseCase;
         }
 
         [HttpGet("{userId}")]
@@ -110,6 +113,13 @@ namespace NEXCHAT.Server.Controllers
         {
             var blocked = await getBlockedFriendsUseCase.ExecuteAsync(userId);
             return Ok(blocked);
+        }
+
+        [HttpPost("{userId}/isBlocked")]
+        public async Task<ActionResult<bool>> IsFriendBlocked(Guid userId, [FromQuery] Guid friendId)
+        {
+            bool isBlocked = await checkIfBlockedByFriendUseCase.ExecuteAsync(userId, friendId);
+            return Ok(isBlocked);
         }
 
         [HttpPost("{requesterId}/send")]

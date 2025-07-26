@@ -33,32 +33,35 @@ namespace NEXCHAT.Plugin.EFCore
 
         public async Task<IEnumerable<Conversation>> GetUserConversationsAsync(Guid userId, bool isGroupConversation)
         {
-            // attempting to return all user conversations including their last message and unread messages count.
             await using var context = await _dbContextFactory.CreateDbContextAsync();
 
-            var conversations = await context.ConversationParticipants
-                .Where(cp => cp.UserId == userId)
-                .Select(cp => new  // Project to temporary object
-                {
-                    Conversation = cp.Conversation,
-                    LastMessage = cp.Conversation.Messages
-                        .OrderByDescending(m => m.DateSentUTC)
-                        .FirstOrDefault(),
-                    UnreadCount = cp.Conversation.Messages
-                        .Count(m => !m.SeenBy.Any(ms => ms.UserId == userId))
-                })
-                .Where(x => x.Conversation.IsGroupConversation == isGroupConversation)
+            // Get conversations where user is a participant or the creator
+            var conversations = await context.Conversations
+                .Where(c =>
+                    c.IsGroupConversation == isGroupConversation &&
+                    (c.CreatorId == userId || c.ConversationParticipants.Any(cp => cp.UserId == userId)))
+                .Include(c => c.ConversationParticipants)
+                    .ThenInclude(cp => cp.User)
+                .Include(c => c.Creator)
+                .Include(c => c.Messages)
+                    .ThenInclude(m => m.SeenBy)
                 .AsNoTracking()
                 .ToListAsync();
 
-            // Map calculated values back to Conversation entities
-            foreach (var item in conversations)
+            foreach (var conversation in conversations)
             {
-                item.Conversation.UnreadMessagesCount = item.UnreadCount;
-                item.Conversation.LastMessage = item.LastMessage;
+                // Set last message
+                conversation.LastMessage = conversation.Messages
+                    .OrderByDescending(m => m.DateSentUTC)
+                    .FirstOrDefault();
+
+                // Set unread message count
+                conversation.UnreadMessagesCount = conversation.Messages
+                    .Count(m => !m.SeenBy.Any(sb => sb.UserId == userId));
             }
 
-            return conversations.Select(x => x.Conversation).ToList();
+            return conversations;
         }
+
     }
 }

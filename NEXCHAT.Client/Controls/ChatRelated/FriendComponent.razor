@@ -19,7 +19,7 @@
         </div>
         @if (Type == FriendType.Friend)
         {
-            <NavLink href="@($"/chat/{ GuidCombiner.CombineGuids(UserId,Friend.UserId)}")" class="px-4 py-1 rounded-full border border-cyan-400 text-cyan-400 hover:bg-cyan-400 hover:text-black transition">
+            <NavLink href="@($"/chat/{Friend.UserId}")" class="px-4 py-1 rounded-full border border-cyan-400 text-cyan-400 hover:bg-cyan-400 hover:text-black transition">
                 Message
             </NavLink>
         }

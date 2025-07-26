@@ -7,7 +7,7 @@ using NEXCHAT.Client.Services;
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
-builder.Services.AddSingleton<ChatSignalRService>();
+builder.Services.AddScoped<ChatSignalRService>();
 builder.Services.AddScoped<TokenService>();
 
 // auth hanlder

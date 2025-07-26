@@ -1,129 +1,335 @@
-﻿@page "/chat/{conversationId:guid}"
+﻿@page "/chat/{friendId:guid}"
 @layout Layout.AuthLayout
-<div class="flex items-center space-x-4 py-4 px-8 border-b border-white/10 fixed w-full top-0 backdrop-blur-lg">
-    <!-- Back Button -->
-    <button class="text-white hover:text-cyan-400 transition-colors text-2xl focus:outline-none"
-            onclick="window.history.back()">
-        <i class="fas fa-arrow-left"></i>
-    </button>
-    <!-- Clickable profile pic (other user) -->
-    <a href="profile-other.html" class="min-fit">
-        <img src="../images/class.jpg"
-             alt="Other User Profile"
-             class="w-16 h-16 rounded-full border border-white/20 object-cover" />
-    </a>
-    <!-- Username and stats -->
-    <div>
-        <a href="profile-other.html" class="font-bold text-xl hover:underline">
-            sweetpeaywohd
-        </a>
-        <p class="text-gray-400 text-sm">66 following • 43 followers</p>
-    </div>
-</div>
-	<main class="flex-grow pb-20" style="margin-top: 120px;">
-		<div class="container mx-auto px-4 py-2">
-            <div class="container mx-auto px-4">
-                <!-- Profile Header within the chat -->
-            
+@inject AuthenticationStateProvider AuthStateProvider
+@inject HttpClient Http
+@attribute [Authorize]
+@inject IJSRuntime JSRuntime
+@inject ChatSignalRService ChatService
 
-                <!-- Chat Timestamp -->
-                <div class="chat-date">
-                    February 21, 2025, 2:22 AM
-                </div>
+<PageTitle>Chat-@friendName</PageTitle>
+<div class="flex items-center space-x-4 py-4 px-8 border-b border-white/10 fixed w-full top-0 backdrop-blur-lg chatHeader">
+	<!-- Back Button -->
+	<button class="text-white hover:text-cyan-400 transition-colors text-2xl focus:outline-none"
+			onclick="window.history.back()">
+		<i class="fas fa-arrow-left"></i>
+	</button>
+	@if (isFriendLoading)
+	{
+		<FriendConversationImageLoading />
+	}
+	else if (!isFriendLoading && friend != null)
+	{
+		<NavLink href="@($"/profile/{friend.UserId}")" class="min-fit">
+			<UserImageComponent Src="@(string.IsNullOrEmpty(friend.PhotoPath) ? friend.UserName.Substring(0, 2).ToUpper() : friend.PhotoPath)"
+			UserStatus="friend.Status" />
+		</NavLink>
 
-                <!-- Chat Messages Container -->
-                <div class="space-y-4 mb-16">
-                    <!-- Example: Other User's message (left) with profile pic -->
-                    <div class="flex items-start space-x-2">
-                        <!-- Profile pic clickable -->
-                        <a href="profile-other.html" class="min-fit">
-                            <img src="../images/class.jpg" alt="Other User" class="w-10 h-10 rounded-full object-cover border border-white/20">
-                        </a>
-                        <div>
-                            <div class="chat-bubble chat-bubble-left">
-                                <p>babe?😂😂</p>
-                            </div>
-                            <small class="message-timestamp ml-2">2:20 AM</small>
-                        </div>
-                    </div>
-
-                    <!-- Another from other user (left) -->
-                    <div class="flex items-start space-x-2">
-                        <a href="profile-other.html" class="min-fit">
-                            <img src="../images/class.jpg" alt="Other User" class="w-10 h-10 rounded-full object-cover border border-white/20">
-                        </a>
-                        <div>
-                            <div class="chat-bubble chat-bubble-left">
-                                <p>Kash</p>
-                            </div>
-                            <small class="message-timestamp ml-2">2:21 AM</small>
-                        </div>
-                    </div>
-
-                    <!-- Current User's message (right) -->
-                    <div class="flex flex-col items-end">
-                        <div class="chat-bubble chat-bubble-right">
-                            <p>bello😟</p>
-                        </div>
-                        <small class="message-timestamp">2:22 AM</small>
-                    </div>
-
-                    <!-- Another from current user (right) -->
-                    <div class="flex flex-col items-end">
-                        <div class="chat-bubble chat-bubble-right">
-                            <p>Jesus 🤣🤣.. I dey look for the message place</p>
-                        </div>
-                        <small class="message-timestamp">2:23 AM</small>
-                    </div>
-
-                    <!-- Another from current user (right) -->
-                    <div class="flex flex-col items-end">
-                        <div class="chat-bubble chat-bubble-right">
-                            <p>if no be notification wey popup wey I click</p>
-                        </div>
-                        <small class="message-timestamp">2:24 AM</small>
-                    </div>
-
-                    <!-- SENT IMAGE (current user) -->
-                    <div class="flex flex-col items-end">
-                        <div class="chat-bubble chat-bubble-right">
-                            
-                                <p>Some text describing this sent image.</p>
-                        </div>
-                        <small class="message-timestamp">2:25 AM</small>
-                    </div>
-
-                    <!-- RECEIVED IMAGE (other user) + Additional Text -->
-                    <div class="flex items-start space-x-2">
-                        <a href="profile-other.html" class="min-fit">
-                            <img src="../images/class.jpg" alt="Other User" class="w-10 h-10 rounded-full object-cover border border-white/20">
-                        </a>
-                        <div>
-                            <div class="chat-bubble chat-bubble-left">
-                                
-                                    <p>Here’s an image plus some text underneath.</p>
-                            </div>
-                            <small class="message-timestamp ml-2">2:26 AM</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
+		<div>
+			<NavLink href="@($"/profile/{friend.UserId}")" class="font-bold text-xl hover:underline">
+				@friend.UserName
+			</NavLink>
+			<p class="text-gray-400 text-sm">@friend.Email</p>
 		</div>
-	</main>
+	}
+</div>
 
-    <div class="fixed bottom-0 w-full bg-black/80 backdrop-blur-lg border-t border-white/10">
-        <div class="container mx-auto px-4 py-3">
-            <div class="flex items-center space-x-2">
-                <input type="text"
-                       placeholder="Send a message..."
-                       class="flex-grow bg-black/30 border border-cyan-400/20 rounded-full px-4 py-2 text-white focus:border-cyan-400 focus:outline-none" />
-                <button class="text-white hover:text-cyan-400 transition-colors">
-                    <i class="fas fa-paper-plane text-xl"></i>
-                </button>
-            </div>
-        </div>
-    </div>
+<main class="flex-grow pb-20" style="margin-top: 82px;">
+	<div class="container mx-auto px-4 py-2" @ref="messagesContainer">
+		@if (isConvLoading)
+		{
+			<ConversationLoadingComponent />
+		}
+		@if (!isConvLoading && user != null && friend != null)
+		{
+
+			if (conversation == null)
+			{
+				<div class="chat-date">
+					@DateTime.Now.ToString("MMM dd yyyy")
+				</div>
+			}
+
+			<!-- Chat Messages Container -->
+			<div class="space-y-4 mb-16">
+				@if (messages?.Count > 0)
+				{
+					<Virtualize Items="messages" Context="msg" @ref="virtualizeContainer">
+						@{
+							var isNewDay = msg.DateSentUTC.Date != prevDate.Date;
+							prevDate = msg.DateSentUTC;
+						}
+
+						@if (isNewDay)
+						{
+							<div class="chat-date text-center my-4">
+								@msg.DateSentUTC.ToLocalTime().ToString("MMM dd yyyy")
+							</div>
+						}
+
+						<ChatBubbleComponent Message="msg"
+						IsCurrentUser="msg.SenderId == user.UserId"
+						Friend="friend" LastMessageDateUtc="prevDate" />
+					</Virtualize>
+				}
+				else
+				{
+					<div class="text-center py-10 text-gray-500">
+						No messages yet. Start the conversation!
+					</div>
+				}
+
+			</div>
+		}
+	</div>
+</main>
+
+<div class="fixed bottom-0 w-full bg-black/80 backdrop-blur-lg border-t border-white/10">
+	<div class="container mx-auto px-4 py-3">
+		<div class="flex items-end space-x-2">
+			<InputTextArea @bind-value="message"
+			placeholder="Send a message..."
+			class="messageTxt flex-grow bg-black/30 border border-cyan-400/20 rounded-lg px-4 py-2 text-white focus:border-cyan-400 focus:outline-none" />
+
+			<button class="text-white hover:text-cyan-400 transition-colors" @onclick="sendMessage">
+				<i class="fas fa-paper-plane text-xl"></i>
+			</button>
+		</div>
+	</div>
+</div>
+
+<ToastComponent @ref="toastComponent" Timeout="3000" />
 @code {
 	[Parameter]
-	public Guid conversationId { get; set; }
+	public Guid friendId { get; set; }
+
+	private User? user;
+	private User? friend;
+	private Conversation? conversation;
+	private List<Message>? messages = new();
+	public string friendName = "friend";
+	private bool isFriendLoading = true;
+	private bool isConvLoading = true;
+	private bool isUserBlocked = false;
+	private ToastComponent? toastComponent;
+
+	private int pageIndex = 1;
+	private int pageSize = 30;
+
+	private Virtualize<Message> virtualizeContainer;
+	private DateTime prevDate = DateTime.MinValue;
+	private string message = "";
+	Guid conversationId = Guid.Empty;
+
+	private ElementReference messagesContainer;
+	private bool shouldScrollToBottom = true;
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (shouldScrollToBottom)
+		{
+			await ScrollToBottom();
+			shouldScrollToBottom = false;
+		}
+	}
+
+	private async Task sendMessage()
+	{
+		if (!string.IsNullOrEmpty(message))
+		{
+			if (user == null || friend == null) return;
+
+			bool isDelivered = friend.Status == StatusType.Online ? true : false;
+			Message newMessage = new Message
+				{
+					MessageId = Guid.NewGuid(),
+					Content = message,
+					ConversationId = conversationId,
+					SenderId = user.UserId,
+					DateSentUTC = DateTime.UtcNow,
+					IsDelivered = isDelivered
+				};
+
+			messages.Add(newMessage);
+			message = "";
+			shouldScrollToBottom = true;
+			StateHasChanged();
+			try
+			{
+				if (conversation == null)
+				{
+
+					StartConversationRequestDto convDto = new()
+						{
+							CreatorId = user.UserId,
+							ConversationdId = conversationId,
+							Participants = new List<Guid> { user.UserId, friend.UserId },
+							IsGroup = false,
+							GroupName = string.Empty,
+							Message = newMessage
+						};
+
+					var content = JsonContent.Create(convDto);
+					var response = await Http.PostAsync("api/conversations/start", content);
+
+					if (response.IsSuccessStatusCode)
+					{
+						conversationId = await response.Content.ReadFromJsonAsync<Guid>();
+					}
+					else
+					{
+						var error = await response.Content.ReadAsStringAsync();
+						Console.WriteLine($"Error: {response.StatusCode}, {error}");
+					}
+
+				}
+				else{
+					var dto = JsonContent.Create(newMessage);
+					await Http.PostAsync("api/messages/send", dto);
+				}
+			}
+
+			
+			catch
+			{
+				// Handle error
+				messages.Remove(newMessage);
+				message = newMessage.Content;
+				StateHasChanged();
+			}
+		}
+	}
+
+	protected async override Task OnInitializedAsync()
+	{
+		var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+		var userIdClaim = auth.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+		if (!Guid.TryParse(userIdClaim, out var userId))
+		{
+			isFriendLoading = false;
+			isConvLoading = false;
+			return;
+		}
+
+		try
+		{
+			user = await Http.GetFromJsonAsync<User>($"api/users/{userId}/basic");
+			friend = await Http.GetFromJsonAsync<User>($"api/users/{friendId}/basic");
+		}
+		catch
+		{
+			user = null;
+			friend = null;
+		}
+		await LoadMore();
+		await InitializeSignalR();
+	}
+
+	private async Task LoadMore()
+	{
+		if (user != null && friend != null)
+		{
+			isFriendLoading = false;
+			try
+			{
+				conversationId = GuidCombiner.CombineGuids(user.UserId, friend.UserId);
+				var response = await Http.GetAsync($"api/conversations/{conversationId}");
+				if (response.IsSuccessStatusCode)
+				{
+					conversation = await response.Content.ReadFromJsonAsync<Conversation>();
+				}
+				else if (response.StatusCode == HttpStatusCode.NotFound)
+				{
+					conversation = null;
+				}
+				else
+				{
+					toastComponent?.ShowToast(ToastType.Danger, "Error", "Failed to get conversation.");
+				}
+				if (conversation != null)
+				{
+					var url = $"api/messages/conversation?conversationId={conversationId}&pageIndex={pageIndex}&pageSize={pageSize}";
+					var newMessages = await Http.GetFromJsonAsync<List<Message>>(url);
+					if (newMessages != null)
+					{
+						messages?.AddRange(newMessages);
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine(ex.StackTrace);
+				toastComponent?.ShowToast(ToastType.Danger, "Error!", "Error getting conversation");
+			}
+			finally
+			{
+				isConvLoading = false;
+			}
+		}
+	}
+
+	private async Task ScrollToBottom()
+	{
+		await JSRuntime.InvokeVoidAsync("scrollToBottom", messagesContainer);
+	}
+
+	private async Task InitializeSignalR()
+	{
+		if (user == null) return;
+
+		// Connect to SignalR
+		await ChatService.ConnectAsync(user.UserId);
+
+		// Subscribe to message events
+		ChatService.OnMessageReceived += HandleNewMessage;
+		ChatService.OnMessageDelivered += HandleMessageDelivery;
+		ChatService.OnMessageSeen += HandleMessageSeen;
+	}
+
+	private void HandleNewMessage(Message message)
+	{
+		// Only process messages for current conversation
+		if (message.ConversationId == conversationId)
+		{
+			// Update message status if it's from current user (optimistic update)
+			if (message.SenderId == user.UserId)
+			{
+				message.IsDelivered = true;
+			}
+
+			messages.Add(message);
+			shouldScrollToBottom = true;
+			StateHasChanged();
+
+			playRecievedMessageSound();
+		}
+	}
+
+	private void HandleMessageDelivery(bool delivered)
+	{
+		// Update delivery status for sent messages
+		foreach (var msg in messages.Where(m =>
+			m.SenderId == user.UserId &&
+			!m.IsDelivered))
+		{
+			msg.IsDelivered = true;
+		}
+		StateHasChanged();
+	}
+
+	private void HandleMessageSeen(MessageSeen seen)
+	{
+		// Update seen status for sent messages
+		foreach (var msg in messages.Where(m =>
+			m.SenderId == user.UserId &&
+			m.IsDelivered))
+		{
+			msg.SeenBy.Add(seen);
+		}
+		StateHasChanged();
+	}
+
+	private void playRecievedMessageSound()
+	{
+		// play sound
+	}
 }

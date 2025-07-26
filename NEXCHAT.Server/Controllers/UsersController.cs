@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Shared.DTOS;
 using NEXCHAT.UseCases.Users;
 using NEXCHAT.UseCases.Users.Interfaces;
+using Microsoft.AspNetCore.Identity;
+using NEXCHAT.CoreBusiness;
 
 namespace NEXCHAT.Server.Controllers
 {
@@ -13,24 +15,38 @@ namespace NEXCHAT.Server.Controllers
         private readonly IGetUserByIdUseCase getUserByIdUseCase;
         private readonly IGetUsersByNameUseCase getUsersByNameUseCase;
         private readonly IUpdateUserStatusUseCase updateUserStatusUseCase;
+        private readonly UserManager<User> userManager;
 
         public UsersController
             (
             IGetUserByIdUseCase getUserByIdUseCase,
             IGetUsersByNameUseCase getUsersByNameUseCase,
-            IUpdateUserStatusUseCase updateUserStatusUseCase
+            IUpdateUserStatusUseCase updateUserStatusUseCase,
+            UserManager<User> userManager
             )
         {
             this.getUserByIdUseCase = getUserByIdUseCase;
             this.getUsersByNameUseCase = getUsersByNameUseCase;
             this.updateUserStatusUseCase = updateUserStatusUseCase;
+            this.userManager = userManager;
         }
 
         // GET: api/users/{userId}
-        [HttpGet("{userId}")]
+        [HttpGet("{userId}/detailed")]
         public async Task<IActionResult> GetUserById(Guid userId)
         {
             var user = await getUserByIdUseCase.ExecuteAsync(userId);
+            if (user == null)
+                return NotFound();
+
+            return Ok(user);
+        }
+        
+        // GET: api/users/{userId}
+        [HttpGet("{userId}/basic")]
+        public async Task<IActionResult> GetUserBasicInfoById(Guid userId)
+        {
+            var user = await userManager.FindByIdAsync(userId.ToString());
             if (user == null)
                 return NotFound();
 

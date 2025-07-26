@@ -64,7 +64,8 @@ namespace NEXCHAT.Plugin.EFCore
 
             foreach (var participant in conversation.ConversationParticipants)
             {
-                await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessageReacted", new ReactionEvent(message, reaction));
+                if (participant.UserId != userId)
+                    await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessageReacted", new ReactionEvent(message, reaction));
             }
         }
 
@@ -83,7 +84,8 @@ namespace NEXCHAT.Plugin.EFCore
             await context.SaveChangesAsync();
             foreach (var participant in conversation.ConversationParticipants)
             {
-                await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessageDeleted", true);
+                if (participant.UserId != message.SenderId)
+                    await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessageDeleted", true);
             }
         }
 
@@ -101,7 +103,8 @@ namespace NEXCHAT.Plugin.EFCore
             await context.SaveChangesAsync();
             foreach (var participant in conversation.ConversationParticipants)
             {
-                await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessageEdited", true);
+                if (participant.UserId != message.SenderId)
+                    await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessageEdited", true);
             }
         }
 
@@ -145,7 +148,8 @@ namespace NEXCHAT.Plugin.EFCore
             
             foreach (var participant in conversation.ConversationParticipants)
             {
-                await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "ReactionRemoved", true);
+                if (participant.UserId != userId)
+                    await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "ReactionRemoved", true);
             }
         }
 
@@ -159,7 +163,8 @@ namespace NEXCHAT.Plugin.EFCore
             var conversation = await _conversationRepository.GetConversationAsync(message.ConversationId);
             foreach (var participant in conversation.ConversationParticipants)
             {
-                await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessageReceived", message);
+                if (participant.UserId != message.SenderId)
+                    await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessageReceived", message);
             }
 
             return message.MessageId;
@@ -178,7 +183,8 @@ namespace NEXCHAT.Plugin.EFCore
             var conversation = await _conversationRepository.GetConversationAsync(message.ConversationId);
             foreach (var participant in conversation.ConversationParticipants)
             {
-                await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessageDelivered", true);
+                if (participant.UserId != message.SenderId)
+                    await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessageDelivered", true);
             }
         }
 
@@ -203,7 +209,8 @@ namespace NEXCHAT.Plugin.EFCore
             var conversation = await _conversationRepository.GetConversationAsync(conversationId);
             foreach (var participant in conversation.ConversationParticipants)
             {
-                await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessagesSeen", true);
+                if (participant.UserId != userId)
+                    await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessagesSeen", seenEntries);
             }
         }
 

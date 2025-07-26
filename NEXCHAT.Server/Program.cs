@@ -64,6 +64,7 @@ builder.Services.AddTransient<IGetPendingFriendRequestsUseCase, GetPendingFriend
 builder.Services.AddTransient<IRejectFriendRequestUseCase, RejectFriendRequestUseCase>();
 builder.Services.AddTransient<ISendFriendRequestUseCase, SendFriendRequestUseCase>();
 builder.Services.AddTransient<IUnBlockFriendUseCase, UnBlockFriendUseCase>();
+builder.Services.AddTransient<ICheckIfBlockedByFriendUseCase, CheckIfBlockedByFriendUseCase>();
 
 // notification management
 builder.Services.AddTransient<IGetUnseenNotificationCountUseCase, GetUnseenNotificationCountUseCase>();

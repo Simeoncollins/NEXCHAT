@@ -3,7 +3,6 @@
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    // Invoke the .NET method to load more books
                     dotNetHelper.invokeMethodAsync('LoadMore');
                 }
             });
@@ -14,3 +13,11 @@
         observer.observe(element);
     }
 };
+
+// Scroll to bottom function
+function scrollToBottom(element) {
+    element.scrollTop = element.scrollHeight;
+}
+
+// Initialize as global function
+window.scrollToBottom = scrollToBottom;
