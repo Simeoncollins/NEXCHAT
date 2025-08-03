@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualBasic;
 using NEXCHAT.CoreBusiness;
+using NEXCHAT.CoreBusiness.Classes;
 using NEXCHAT.CoreBusiness.Interfaces;
 using NEXCHAT.UseCases.PluginInterfaces;
 
@@ -37,15 +38,40 @@ namespace NEXCHAT.Plugin.EFCore
 
         public async Task<Conversation?> GetConversationAsync(Guid conversationId)
         {
-            // does not include messages
             await using var context = await _dbContextFactory.CreateDbContextAsync();
 
-            return await context.Conversations
-                .Include(c => c.ConversationParticipants)
-                    .ThenInclude(cp => cp.User) // Include user details if needed
-                .Include(c => c.ParticipantsTyping)
-                .AsNoTracking() // Recommended for read-only
-                .FirstOrDefaultAsync(c => c.ConversationId == conversationId);
+            var conversation = await context.Conversations
+                .Where(c => c.ConversationId == conversationId)
+                .AsNoTracking()
+                .Select(c => new Conversation
+                {
+                    ConversationId = c.ConversationId,
+                    CreatorId = c.CreatorId,
+                    Creator = c.Creator,
+                    DateStartedUTC = c.DateStartedUTC,
+                    IsGroupConversation = c.IsGroupConversation,
+                    GroupName = c.GroupName,
+                    GroupCoverPhotoPath = c.GroupCoverPhotoPath,
+
+                    ConversationParticipants = c.ConversationParticipants
+                        .Select(cp => new ConversationParticipant
+                        {
+                            UserId = cp.UserId,
+                            ConversationId = cp.ConversationId,
+                            // User = cp.User // Optional if you need more info
+                        }).ToList(),
+
+                    ParticipantsTyping = c.ParticipantsTyping
+                        .Select(pt => new ConversationTypingUser
+                        {
+                            ConversationId = pt.ConversationId,
+                            UserId = pt.UserId,
+                            Name = pt.User.UserName,
+                            PhotoPath = pt.User.PhotoPath
+                        }).ToList()
+                })
+                .FirstOrDefaultAsync();
+            return conversation;
         }
 
         public async Task RemoveParticipantFromConversationAsync(Guid conversationId, Guid userId)
@@ -73,6 +99,7 @@ namespace NEXCHAT.Plugin.EFCore
             var conversataion = await context.Conversations
                 .Include(c => c.ConversationParticipants)
                 .FirstOrDefaultAsync(c => c.ConversationId == conversationId);
+            var user = await context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
 
             if (isTyping)
             {
@@ -98,7 +125,14 @@ namespace NEXCHAT.Plugin.EFCore
             {
                 foreach (var participant in conversataion.ConversationParticipants)
                 {
-                    await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "TypingUpdate", true);
+                    await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "TypingUpdate", new UserTyping
+                    {
+                        ConversationId = conversationId,
+                         UserId = userId,
+                        Name = user == null? "" : user.UserName,
+                        PhotoPath = user == null ? "" : user.PhotoPath,
+                        IsTyping = isTyping
+                    });
                 }
             }
         }
@@ -110,8 +144,7 @@ namespace NEXCHAT.Plugin.EFCore
             await context.SaveChangesAsync();
             foreach (var participant in conversation.ConversationParticipants)
             {
-                if (participant.UserId != conversation.CreatorId)
-                    await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "ConversationStarted", conversation);
+                await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "ConversationStarted", conversation);
             }
             return conversation.ConversationId;
         }

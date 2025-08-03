@@ -5,9 +5,10 @@
 @attribute [Authorize]
 @inject IJSRuntime JSRuntime
 @inject ChatSignalRService ChatService
+@inject IToastService ToastService
 
 <PageTitle>Chat-@friendName</PageTitle>
-<div class="flex items-center space-x-4 py-4 px-8 border-b border-white/10 fixed w-full top-0 backdrop-blur-lg chatHeader">
+<div class="flex items-center space-x-4 py-4 px-8 border-b border-white/10 fixed w-full top-0 backdrop-blur-lg chatHeader" style="z-index:99">
 	<!-- Back Button -->
 	<button class="text-white hover:text-cyan-400 transition-colors text-2xl focus:outline-none"
 			onclick="window.history.back()">
@@ -33,8 +34,8 @@
 	}
 </div>
 
-<main class="flex-grow pb-20" style="margin-top: 82px;">
-	<div class="container mx-auto px-4 py-2" @ref="messagesContainer">
+<main class="flex-grow pb-4" style="margin-top: 82px;">
+	<div class="container mx-auto px-4 py-2">
 		@if (isConvLoading)
 		{
 			<ConversationLoadingComponent />
@@ -50,13 +51,15 @@
 			}
 
 			<!-- Chat Messages Container -->
-			<div class="space-y-4 mb-16">
+			<div class="space-y-4 mb-16" @ref="messagesContainer">
 				@if (messages?.Count > 0)
 				{
 					<Virtualize Items="messages" Context="msg" @ref="virtualizeContainer">
 						@{
-							var isNewDay = msg.DateSentUTC.Date != prevDate.Date;
-							prevDate = msg.DateSentUTC;
+							// Calculate if this message needs a date header
+							var currentIndex = messages.IndexOf(msg);
+							var isNewDay = currentIndex == 0 ||
+					msg.DateSentUTC.Date != messages[currentIndex - 1].DateSentUTC.Date;
 						}
 
 						@if (isNewDay)
@@ -68,8 +71,12 @@
 
 						<ChatBubbleComponent Message="msg"
 						IsCurrentUser="msg.SenderId == user.UserId"
-						Friend="friend" LastMessageDateUtc="prevDate" />
+						Friend="friend" />
 					</Virtualize>
+					if(conversation.ParticipantsTyping.Any())
+					{
+						<TypingIndicatorComponent UserId="user.UserId" TypingUsers="conversation.ParticipantsTyping" />
+					}
 				}
 				else
 				{
@@ -86,9 +93,9 @@
 <div class="fixed bottom-0 w-full bg-black/80 backdrop-blur-lg border-t border-white/10">
 	<div class="container mx-auto px-4 py-3">
 		<div class="flex items-end space-x-2">
-			<InputTextArea @bind-value="message"
+			<textarea value="@message" @oninput="@((e) => OnInputChanged(e))"
 			placeholder="Send a message..."
-			class="messageTxt flex-grow bg-black/30 border border-cyan-400/20 rounded-lg px-4 py-2 text-white focus:border-cyan-400 focus:outline-none" />
+			class="messageTxt flex-grow bg-black/30 border border-cyan-400/20 rounded-lg px-4 py-2 text-white focus:border-cyan-400 focus:outline-none"></textarea>
 
 			<button class="text-white hover:text-cyan-400 transition-colors" @onclick="sendMessage">
 				<i class="fas fa-paper-plane text-xl"></i>
@@ -97,7 +104,7 @@
 	</div>
 </div>
 
-<ToastComponent @ref="toastComponent" Timeout="3000" />
+
 @code {
 	[Parameter]
 	public Guid friendId { get; set; }
@@ -110,18 +117,22 @@
 	private bool isFriendLoading = true;
 	private bool isConvLoading = true;
 	private bool isUserBlocked = false;
-	private ToastComponent? toastComponent;
+
 
 	private int pageIndex = 1;
 	private int pageSize = 30;
 
 	private Virtualize<Message> virtualizeContainer;
-	private DateTime prevDate = DateTime.MinValue;
 	private string message = "";
 	Guid conversationId = Guid.Empty;
 
 	private ElementReference messagesContainer;
 	private bool shouldScrollToBottom = true;
+
+	private bool messagesMarked = false;
+
+	private readonly object typingLock = new object();
+	private Timer? _typingCleanupTimer;
 
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
@@ -132,6 +143,21 @@
 		}
 	}
 
+	private async Task OnInputChanged(ChangeEventArgs e)
+	{
+		message = e.Value?.ToString() ?? "";
+
+		if (conversation == null) return;
+
+		if (message.Length > 0)
+		{
+			await Http.PostAsync($"api/conversations/{conversationId}/typing-indicator?userId={user.UserId}&isTyping=true", null);
+		}
+		else if (message.Length == 0)
+		{
+			await Http.PostAsync($"api/conversations/{conversationId}/typing-indicator?userId={user.UserId}&isTyping=false", null);
+		}
+	}
 	private async Task sendMessage()
 	{
 		if (!string.IsNullOrEmpty(message))
@@ -139,13 +165,16 @@
 			if (user == null || friend == null) return;
 
 			bool isDelivered = friend.Status == StatusType.Online ? true : false;
+			Guid messageId = Guid.NewGuid();
+			DateTime date = DateTime.UtcNow;
+			
 			Message newMessage = new Message
 				{
-					MessageId = Guid.NewGuid(),
+					MessageId = messageId,
 					Content = message,
 					ConversationId = conversationId,
 					SenderId = user.UserId,
-					DateSentUTC = DateTime.UtcNow,
+					DateSentUTC = date,
 					IsDelivered = isDelivered
 				};
 
@@ -188,7 +217,7 @@
 				}
 			}
 
-			
+
 			catch
 			{
 				// Handle error
@@ -223,7 +252,10 @@
 		await LoadMore();
 		await InitializeSignalR();
 	}
-
+	private async Task markNewMessagesAsSeen()
+	{
+		var response = await Http.PutAsync($"api/messages/conversation/{conversationId}/seen?userId={user.UserId}", null);
+	}
 	private async Task LoadMore()
 	{
 		if (user != null && friend != null)
@@ -243,7 +275,7 @@
 				}
 				else
 				{
-					toastComponent?.ShowToast(ToastType.Danger, "Error", "Failed to get conversation.");
+					ToastService.ShowToast(ToastType.Danger, "Error", "Failed to get conversation.");
 				}
 				if (conversation != null)
 				{
@@ -253,12 +285,17 @@
 					{
 						messages?.AddRange(newMessages);
 					}
+					if (!messagesMarked)
+					{
+						await markNewMessagesAsSeen();
+						messagesMarked = true;
+					}
 				}
 			}
 			catch (Exception ex)
 			{
 				Console.WriteLine(ex.StackTrace);
-				toastComponent?.ShowToast(ToastType.Danger, "Error!", "Error getting conversation");
+				ToastService.ShowToast(ToastType.Danger, "Error!", "Error getting conversation");
 			}
 			finally
 			{
@@ -283,8 +320,72 @@
 		ChatService.OnMessageReceived += HandleNewMessage;
 		ChatService.OnMessageDelivered += HandleMessageDelivery;
 		ChatService.OnMessageSeen += HandleMessageSeen;
+		ChatService.OnUserStatusChanged += HandleStatusChange;
+		ChatService.OnTypingUsers += HandleTypingUsersChanged;
+	}
+	private void HandleTypingUsersChanged(UserTyping userTyping)
+	{
+		if (conversationId != userTyping.ConversationId) return;
+		
+		lock (typingLock)
+		{
+			if (userTyping.IsTyping)
+			{
+				// Add or update typing user
+				var existing = conversation.ParticipantsTyping.FirstOrDefault(u => u.UserId == userTyping.UserId);
+				if (existing == null)
+				{
+					conversation.ParticipantsTyping.Add(new ConversationTypingUser
+						{
+							UserId = userTyping.UserId,
+							Name = userTyping.Name,
+							PhotoPath = userTyping.PhotoPath,
+							ConversationId = conversation.ConversationId,
+							LastTypingTime = DateTime.UtcNow
+						});
+				}
+				else
+				{
+					existing.LastTypingTime = DateTime.UtcNow;
+				}
+			}
+			else
+			{
+				// Remove user from typing list
+				var userToRemove = conversation.ParticipantsTyping.FirstOrDefault(u => u.UserId == userTyping.UserId);
+				if (userToRemove != null)
+				{
+					conversation.ParticipantsTyping.Remove(userToRemove);
+				}
+			}
+		}
+
+		StartTypingCleanupTimer();
+		StateHasChanged();
 	}
 
+	private void StartTypingCleanupTimer()
+	{
+		// Clear typing indicators after 5 seconds of inactivity
+		_typingCleanupTimer?.Dispose();
+		_typingCleanupTimer = new Timer(_ =>
+		{
+			lock (typingLock)
+			{
+				var cutoff = DateTime.UtcNow.AddSeconds(-5);
+				conversation.ParticipantsTyping.RemoveAll(u => u.LastTypingTime < cutoff);
+			}
+			InvokeAsync(StateHasChanged);
+		}, null, 5000, Timeout.Infinite);
+	}
+	private void HandleStatusChange(UserStatus userStatus)
+	{
+		if(friendId == userStatus.UserId)
+		{
+			friend.Status = userStatus.Status;
+			StateHasChanged();
+		}
+	}
 	private void HandleNewMessage(Message message)
 	{
 		// Only process messages for current conversation
@@ -304,14 +405,17 @@
 		}
 	}
 
-	private void HandleMessageDelivery(bool delivered)
+	private void HandleMessageDelivery(Guid convId)
 	{
-		// Update delivery status for sent messages
-		foreach (var msg in messages.Where(m =>
-			m.SenderId == user.UserId &&
-			!m.IsDelivered))
+		if (convId == conversationId)
 		{
-			msg.IsDelivered = true;
+			// Update delivery status for sent messages
+			foreach (var msg in messages.Where(m =>
+				m.SenderId == user.UserId &&
+				!m.IsDelivered))
+			{
+				msg.IsDelivered = true;
+			}
 		}
 		StateHasChanged();
 	}
@@ -332,4 +436,5 @@
 	{
 		// play sound
 	}
+
 }

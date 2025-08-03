@@ -347,7 +347,7 @@ namespace NEXCHAT.Plugin.EFCore
 
                 foreach (var friend in friends)
                 {
-                    await _notifier.NotifyGroupAsync($"user-{friend.UserId}", "UserStatusChanged", true);
+                    await _notifier.NotifyGroupAsync($"user-{friend.UserId}", "UserStatusChanged", new UserStatus{UserId = userId , Status = statusType});
                 }
             }
         }

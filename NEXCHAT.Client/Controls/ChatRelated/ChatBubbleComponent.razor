@@ -1,23 +1,51 @@
-﻿	<!-- chat bubble component -->
-
-
-<div class="flex @(IsCurrentUser ? "flex-col items-end" : "items-start space-x-2")">
-	@if (!IsCurrentUser && friend != null)
-	{
-		<NavLink href="@($"/profile/{friend.UserId}")" class="min-fit">
-			<UserImageComponent Src="@(string.IsNullOrEmpty(friend.PhotoPath) ? friend.UserName.Substring(0, 2).ToUpper() : friend.PhotoPath)" />
-		</NavLink>
-	}
-
-	@if (message != null)
-	{
-		<div class="chat-bubble @(IsCurrentUser ? "chat-bubble-right" : "chat-bubble-left")">
-			<p>@message.Content</p>
-			<!-- Message status indicators -->
-			<div class="message-status">
-				@if (IsCurrentUser)
+﻿<!-- chat bubble component -->
+@if(!IsCurrentUser)
+{
+	<div class="flex flex-col items-start)">
+		@if (message != null)
+		{
+			<div class="flex items-start space-x-2">
+				@if (!IsCurrentUser && friend != null)
 				{
-					@if (message.SeenBy.Count > 0)
+					<NavLink href="@($"/profile/{friend.UserId}")" class="min-fit">
+						<UserImageComponent Src="@(string.IsNullOrEmpty(friend.PhotoPath) ? friend.UserName.Substring(0, 2).ToUpper() : friend.PhotoPath)" />
+					</NavLink>
+				}
+
+
+				<div class="chat-bubble chat-bubble-left">
+					<p>@message.Content</p>
+				</div>
+			</div>
+
+			<div class="flex items-center space-x-2" style="margin-left:47px;">
+				<small class="message-timestamp">
+					@message.DateSentUTC.ToLocalTime().ToString("hh:mm tt")
+				</small>
+			</div>
+
+		}
+	</div>
+}
+
+else
+{
+	<div class="flex flex-col items-end">
+		@if (message != null)
+		{
+			<div class="chat-bubble chat-bubble-right">
+				<p>@message.Content</p>
+			</div>
+
+			<div class="flex items-center space-x-2">
+				<small class="message-timestamp">
+					@message.DateSentUTC.ToLocalTime().ToString("hh:mm tt")
+				</small>
+
+				<div class="message-status" style="font-size:12px;">
+
+					@if ((message.SeenBy.Count > 1 && message.SeenBy.Any(u => u.UserId == userId)) || 
+						(message.SeenBy.Count > 0 && !message.SeenBy.Any(u => u.UserId == userId)))
 					{
 						<i class="fas fa-check-double text-cyan-400"></i>
 					}
@@ -29,25 +57,24 @@
 					{
 						<i class="fas fa-check text-gray-400"></i>
 					}
-				}
+				</div>
+
 			</div>
-		</div>
-		<small class="message-timestamp ml-2">
-			@(message.DateSentUTC.ToLocalTime().Minute == LastMessageDateUtc.ToLocalTime().Minute ? "" : message.DateSentUTC.ToLocalTime().ToString("hh:mm tt"))
-		</small>
-	}
-</div>
+
+		}
+	</div>
+}
 
 @code {
 	[Parameter]
 	public bool IsCurrentUser { get; set; } = true;
 
 	[Parameter]
+	public Guid userId { get; set; }
+
+	[Parameter]
 	public User? friend { get; set; }
 
 	[Parameter]
 	public Message? message { get; set; }
-
-	[Parameter]
-	public DateTime LastMessageDateUtc { get; set; }
 }

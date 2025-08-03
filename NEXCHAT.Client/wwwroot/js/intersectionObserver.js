@@ -14,10 +14,3 @@
     }
 };
 
-// Scroll to bottom function
-function scrollToBottom(element) {
-    element.scrollTop = element.scrollHeight;
-}
-
-// Initialize as global function
-window.scrollToBottom = scrollToBottom;

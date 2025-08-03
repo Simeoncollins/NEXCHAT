@@ -1,12 +1,17 @@
-﻿@page "/auth/logout"
+﻿@page "/auth/logout/{userId:guid}"
 @inject AuthenticationStateProvider AuthStateProvider
 @inject TokenService TokenSvc
 @inject NavigationManager Nav
+@inject HttpClient Http
 
 
 @code {
+    [Parameter]
+    public Guid userId { get; set; }
     protected override async Task OnInitializedAsync()
     {
+        var content = JsonContent.Create(new UpdateUserStatusDto { UserId = userId, StatusType = StatusType.Offline });
+        var response = await Http.PutAsync($"api/users/status", content);
         // 1) Clear tokens
         await TokenSvc.RemoveAsync();
 

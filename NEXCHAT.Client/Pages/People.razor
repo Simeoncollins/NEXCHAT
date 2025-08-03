@@ -2,6 +2,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject HttpClient Http
 @attribute [Authorize]
+@inject IToastService ToastService
 <PageTitle>People</PageTitle>
 <main class="flex-grow pt-6 pb-20" style="margin-top: 80px;" data-aos="fade-up">
     <div class="container mx-auto px-4">
@@ -38,7 +39,7 @@
         }
     </div>
 </main>
-<ToastComponent @ref="toastComponent" Timeout="3000" />
+
 @code {
     private User? user;
     private Dictionary<int, string> tabs = new Dictionary<int, string>
@@ -54,7 +55,7 @@
             [2] = "hidden",
             [3] = "hidden"
         };
-    private ToastComponent? toastComponent;
+
     private FriendsListComponent? friendsListRef;
 
     private int friendsCount = 0;
@@ -83,7 +84,7 @@
     }
     private void HandleError(string message)
     {
-        toastComponent?.ShowToast(ToastType.Danger, "Error!", message);
+        ToastService.ShowToast(ToastType.Danger, "Error!", message);
     }
 
     protected override async Task OnInitializedAsync()

@@ -2,6 +2,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject HttpClient Http
 
+<ToastContainer />
 <div class="page">
     <header class="fixed top-0 w-full z-50 border-b border-gray-700/50" style="background: var(--deep-space)">
         <div class="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -28,7 +29,7 @@
                     <NavLink class="nav-link" href="/profile" Match="NavLinkMatch.All">
                         <span class="block px-4 py-2 text-white hover:bg-cyan-400/20">Profile</span>
                     </NavLink>
-                    <NavLink class="nav-link" href="/auth/logout">
+                    <NavLink class="nav-link" href="@($"/auth/logout/{user?.UserId}")">
                         <span class="block px-4 py-2 text-white hover:bg-cyan-400/20">Logout</span>
                     </NavLink>
                 </div>

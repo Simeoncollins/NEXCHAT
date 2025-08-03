@@ -114,16 +114,15 @@ namespace NEXCHAT.Plugin.EFCore
 
             var baseQuery = context.Messages
                 .Where(m => m.ConversationId == conversationId && !m.IsDeleted)
-                .OrderByDescending(m => m.DateSentUTC)
+                .OrderBy(m => m.DateSentUTC)
                 .Include(m => m.SeenBy)
                 .Include(m => m.Reactions)
                     .ThenInclude(r => r.Reaction);
 
             var messages = await baseQuery
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
                 .AsNoTracking()
                 .ToListAsync();
+
 
             return messages;
         }
@@ -170,21 +169,41 @@ namespace NEXCHAT.Plugin.EFCore
             return message.MessageId;
         }
 
-        public async Task MarkMessageAsDeliveredAsync(Guid messageId)
+        public async Task MarkMessageAsDeliveredAsync(Guid userId)
         {
             await using var context = await _dbContextFactory.CreateDbContextAsync();
 
-            var message = await context.Messages.FindAsync(messageId);
-            if (message == null) return;
+            // Get user's conversation IDs
+            var userConversationIds = await context.ConversationParticipants
+                .Where(p => p.UserId == userId)
+                .Select(p => p.ConversationId)
+                .ToListAsync();
 
-            message.IsDelivered = true;
-            await context.SaveChangesAsync();
+            if (!userConversationIds.Any()) return;
 
-            var conversation = await _conversationRepository.GetConversationAsync(message.ConversationId);
-            foreach (var participant in conversation.ConversationParticipants)
+            // Update messages in bulk
+            await context.Messages
+                .Where(m => m.SenderId != userId)
+                .Where(m => userConversationIds.Contains(m.ConversationId))
+                .Where(m => !m.IsDelivered)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(m => m.IsDelivered, true));
+
+            // Get conversations to notify
+            var conversations = await context.Conversations
+                .Include(c => c.ConversationParticipants)
+                .Where(c => userConversationIds.Contains(c.ConversationId))
+                .ToListAsync();
+
+            foreach (var conversation in conversations)
             {
-                if (participant.UserId != message.SenderId)
-                    await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessageDelivered", true);
+                foreach (var participant in conversation.ConversationParticipants)
+                {
+                    if (participant.UserId != userId)
+                    {
+                        await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessagesDelivered", conversation.ConversationId);
+                    }
+                }
             }
         }
 

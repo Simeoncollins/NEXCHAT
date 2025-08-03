@@ -1,0 +1,58 @@
+﻿@* TypingIndicator.razor *@
+@if (TypingUsers?.Any() == true)
+{
+    <div class="typing-indicator-container">
+        <div class="typing-avatars">
+            @foreach (var typingUser in TypingUsers.Take(3))
+            {
+                if (typingUser.UserId != UserId)
+                {
+                    <div>
+                        <UserImageComponent Src="@(string.IsNullOrEmpty(typingUser.PhotoPath) ? typingUser.Name.Substring(0, 2).ToUpper() : typingUser.PhotoPath)" />
+                    </div>
+                }
+            }
+            @{
+                int count = TypingUsers.Count;
+                if(TypingUsers.Any(u => u.UserId == UserId))
+                {
+                    count -= 1;
+                }
+            }
+            @if (count > 3)
+            {
+                <div class="more-users">+@(count - 3)</div>
+            }
+        </div>
+        @if (TypingUsers.Any(u => u.UserId == UserId) && TypingUsers.Count == 1)
+        {
+
+        }
+        else
+        {
+            <div class="typing-animation">
+                <div class="typing-dots">
+                    <div class="dot dot-1"></div>
+                    <div class="dot dot-2"></div>
+                    <div class="dot dot-3"></div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public List<ConversationTypingUser> TypingUsers { get; set; } = new();
+    [Parameter] public Guid UserId { get; set; }
+
+    private string GetTypingText()
+    {
+        if (TypingUsers.Count == 1)
+            return $"{TypingUsers[0].User.UserName} is typing...";
+
+        if (TypingUsers.Count == 2)
+            return $"{TypingUsers[0].User.UserName} and {TypingUsers[1].User.UserName} are typing...";
+
+        return $"{TypingUsers[0].User.UserName} and {TypingUsers.Count - 1} others are typing...";
+    }
+}

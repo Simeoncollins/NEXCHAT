@@ -14,14 +14,14 @@ namespace NEXCHAT.Client.Services
         public event Action<Message>? OnMessageReceived;
         public event Action<bool>? OnMessageDeleted;
         public event Action<bool>? OnMessageEdited;
-        public event Action<bool>? OnMessageDelivered;
+        public event Action<Guid>? OnMessageDelivered;
         public event Action<MessageSeen>? OnMessageSeen;
         public event Action<ReactionEvent>? OnReactionReceived;
         public event Action<bool>? OnReactionRemoved;
-        public event Action<bool>? OnTypingUsers;
+        public event Action<UserTyping>? OnTypingUsers;
         public event Action<Notification>? OnNotificationRecieved;
         public event Action<Conversation>? OnConversationStarted;
-        public event Action<bool>? OnUserStatusChanged;
+        public event Action<UserStatus>? OnUserStatusChanged;
 
         public bool IsConnected => _hubConnection?.State == HubConnectionState.Connected;
 
@@ -35,7 +35,7 @@ namespace NEXCHAT.Client.Services
             if (_hubConnection is { State: HubConnectionState.Connected or HubConnectionState.Connecting })
                 return;
 
-            var hubUri = _navigation.ToAbsoluteUri($"/chatHub?userId={userId}");
+            var hubUri = _navigation.ToAbsoluteUri($"/chatHub");
             _hubConnection = new HubConnectionBuilder()
               .WithUrl(hubUri, options =>
               {
@@ -76,9 +76,9 @@ namespace NEXCHAT.Client.Services
                 OnMessageEdited?.Invoke(edited);
             });
 
-            _hubConnection.On<bool>("MessageDelivered", delivered =>
+            _hubConnection.On<Guid>("MessageDelivered", conversationId =>
             {
-                OnMessageDelivered?.Invoke(delivered);
+                OnMessageDelivered?.Invoke(conversationId);
             });
 
             _hubConnection.On<MessageSeen>("MessagesSeen", seen =>
@@ -96,9 +96,9 @@ namespace NEXCHAT.Client.Services
                 OnReactionRemoved?.Invoke(removed);
             });
 
-            _hubConnection.On<bool>("TypingUpdate", isTyping =>
+            _hubConnection.On<UserTyping>("TypingUpdate", userTyping =>
             {
-                OnTypingUsers?.Invoke(isTyping);
+                OnTypingUsers?.Invoke(userTyping);
             });
 
             _hubConnection.On<Notification>("NotificationRecieved", notification =>
@@ -106,9 +106,9 @@ namespace NEXCHAT.Client.Services
                 OnNotificationRecieved?.Invoke(notification);
             });
 
-            _hubConnection.On<bool>("UserStatusChanged", changed =>
+            _hubConnection.On<UserStatus>("UserStatusChanged", userStatus =>
             {
-                OnUserStatusChanged?.Invoke(changed);
+                OnUserStatusChanged?.Invoke(userStatus);
             });
         }
 

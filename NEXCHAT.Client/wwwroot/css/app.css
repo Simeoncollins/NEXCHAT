@@ -962,7 +962,6 @@ h1, h2, h3, h4, h5, h6 {
 .message-timestamp {
     font-size: 0.75rem;
     color: #aaa;
-    margin-top: 0.25rem;
 }
 /* Responsive image caption: text container matches image width */
 .caption-container {
@@ -973,7 +972,7 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 0.75rem;
     color: #aaa;
     text-align: center;
-    margin: 1rem 0;
+    margin: 1.5rem 0 !important;
 }
 
 .messageTxt {
@@ -1002,4 +1001,14 @@ h1, h2, h3, h4, h5, h6 {
     width: 50px !important;
     height: 50px !important;
     font-size: 20px !important;
+}
+
+@keyframes progressBar {
+    0% {
+        width: 100%;
+    }
+
+    100% {
+        width: 0%;
+    }
 }

@@ -28,5 +28,10 @@ namespace NEXCHAT.CoreBusiness
         [NotMapped]
         public Message? LastMessage { get; set; }
 
+        public bool IsParticipant(Guid userId)
+        {
+            return ConversationParticipants.Any(p => p.UserId == userId);
+        }
+
     }
 }

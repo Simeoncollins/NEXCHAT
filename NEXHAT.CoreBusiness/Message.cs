@@ -28,6 +28,5 @@ namespace NEXCHAT.CoreBusiness
         {
             return SeenBy.Any(ms => ms.UserId == userId);
         }
-
     }
 }

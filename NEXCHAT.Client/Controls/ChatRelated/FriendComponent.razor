@@ -1,5 +1,5 @@
 ﻿@inject HttpClient Http
-
+@inject IToastService ToastService
 @if(Friend != null)
 {
     <div class="flex items-center justify-between mb-4">
@@ -58,7 +58,6 @@
 
     </div>
 }
-<ToastComponent @ref="toastComponent" Timeout="3000" />
 @code {
     [Parameter]
     public FriendDto? Friend { get; set; }
@@ -74,7 +73,6 @@
 
     [Parameter] public EventCallback<RequestEventResult> OnRequestHandled { get; set; }
     [Parameter] public EventCallback OnFriendUnblocked { get; set; }
-    private ToastComponent? toastComponent;
     private async Task SendRequest()
     {
         if (Friend != null)
@@ -86,12 +84,12 @@
 
             if (response.IsSuccessStatusCode)
             {
-                toastComponent?.ShowToast(ToastType.Success, "Request Sent!", $"Friend request sent to {Friend.UserName}.");
+                ToastService.ShowToast(ToastType.Success, "Request Sent!", $"Friend request sent to {Friend.UserName}.");
                 Requested = true;
             }
             else
             {
-                toastComponent?.ShowToast(ToastType.Danger, "Error!", $"Failed: {response.StatusCode}");
+                ToastService.ShowToast(ToastType.Danger, "Error!", $"Failed: {response.StatusCode}");
             }
         }
     }    
@@ -106,12 +104,12 @@
 
             if (response.IsSuccessStatusCode)
             {
-                toastComponent?.ShowToast(ToastType.Success, "Request Accepted!", $"Friend request from {Friend.UserName} accepted.");
+                ToastService.ShowToast(ToastType.Success, "Request Accepted!", $"Friend request from {Friend.UserName} accepted.");
                 await OnRequestHandled.InvokeAsync(new RequestEventResult(Friend.UserId, true));
             }
             else
             {
-                toastComponent?.ShowToast(ToastType.Danger, "Error!", $"Failed: {response.StatusCode}");
+                ToastService.ShowToast(ToastType.Danger, "Error!", $"Failed: {response.StatusCode}");
             }
         }
 
@@ -127,12 +125,12 @@
 
             if (response.IsSuccessStatusCode)
             {
-                toastComponent?.ShowToast(ToastType.Success, "Request Rejected!", $"Friend request from {Friend.UserName} rejected.");
+                ToastService.ShowToast(ToastType.Success, "Request Rejected!", $"Friend request from {Friend.UserName} rejected.");
                 await OnRequestHandled.InvokeAsync(new RequestEventResult(Friend.UserId, false));
             }
             else
             {
-                toastComponent?.ShowToast(ToastType.Danger, "Error!", $"Failed: {response.StatusCode}");
+                ToastService.ShowToast(ToastType.Danger, "Error!", $"Failed: {response.StatusCode}");
             }
         }
 
@@ -148,13 +146,13 @@
 
             if (response.IsSuccessStatusCode)
             {
-                toastComponent?.ShowToast(ToastType.Success, "Friend Unblocked!", $"{Friend.UserName} has been unblocked.");
+                ToastService.ShowToast(ToastType.Success, "Friend Unblocked!", $"{Friend.UserName} has been unblocked.");
                 Friend.FriendBlocked = false;
                 await OnFriendUnblocked.InvokeAsync();
             }
             else
             {
-                toastComponent?.ShowToast(ToastType.Danger, "Error!", $"Failed: {response.StatusCode}");
+                ToastService.ShowToast(ToastType.Danger, "Error!", $"Failed: {response.StatusCode}");
             }
         }
 

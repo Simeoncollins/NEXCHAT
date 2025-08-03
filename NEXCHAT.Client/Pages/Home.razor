@@ -3,6 +3,7 @@
 @inject HttpClient Http
 @attribute [Authorize]
 @inject ChatSignalRService ChatService
+@inject IToastService ToastService
 
 <PageTitle>Direct messages</PageTitle>
 
@@ -125,7 +126,7 @@
 		</div>
 	</div>
 </main>
-<ToastComponent @ref="toastComponent" Timeout="3000" />
+
 @code
 {
 	private User? user;
@@ -133,7 +134,7 @@
 	private List<Conversation>? conversations = new();
 	private bool isFriednsLoading = true;
 	private bool isConvLoading = true;
-	private ToastComponent? toastComponent;
+
 
 	private void HandleQuery(string query)
 	{
@@ -167,7 +168,7 @@
 			}
 			catch
 			{
-				toastComponent?.ShowToast(ToastType.Danger, "Error!", "Error getting friends");
+				ToastService.ShowToast(ToastType.Danger, "Error!", "Error getting friends");
 			}
 			finally
 			{
@@ -179,32 +180,47 @@
 			}
 			catch
 			{
-				toastComponent?.ShowToast(ToastType.Danger, "Error!", "Error getting conversations");
+				ToastService.ShowToast(ToastType.Danger, "Error!", "Error getting conversations");
 			}
 			finally
 			{
 				isConvLoading = false;
 			}
-		}
+			await InitializeSignalR();
 
-		await InitializeSignalR();
+		}
 	}
 
 	private async Task InitializeSignalR()
 	{
-		if (user == null) return;
 
 		// Connect to SignalR
 		await ChatService.ConnectAsync(user.UserId);
 
 		// Subscribe to message events
 		ChatService.OnConversationStarted += HandleConversation;
+		ChatService.OnMessageReceived += HandleNewMessage;
 	}
 
 	private void HandleConversation(Conversation conversation)
 	{
-		conversations?.Add(conversation);
+		conversations.Add(conversation);
 		StateHasChanged();
+	}
+
+	private void HandleNewMessage(Message message)
+	{
+		ToastService.ShowToast(ToastType.Success, message.Sender.UserName, message.Content, $"/chat/{message.SenderId}");
+		var conversation = conversations.FirstOrDefault(c => c.ConversationId == message.ConversationId);
+		if(conversation != null)
+		{
+			if (message.SenderId != user?.UserId)
+			{
+				conversation.UnreadMessagesCount++;
+			}
+			conversation.LastMessage = message;
+			StateHasChanged();
+		}
 	}
 
 }

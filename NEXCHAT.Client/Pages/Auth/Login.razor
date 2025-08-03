@@ -5,6 +5,7 @@
 @inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthStateProvider
 @layout Layout.AuthLayout
+@inject IToastService ToastService
 
 <main class="min-h-screen flex items-center justify-center px-4 authPage">
     <div class="w-full max-w-md bg-black/50 backdrop-blur-sm p-8 rounded-lg shadow-lg">
@@ -49,7 +50,7 @@
         </p>
     </div>
 </main>
-<ToastComponent @ref="toastComponent" Timeout="3000" />
+
 
 @code {
     private LoginDto credentials = new();
@@ -59,7 +60,6 @@
     [SupplyParameterFromQuery(Name = "registered")]
     public bool Registered { get; set; }
 
-    private ToastComponent? toastComponent;
     private bool hasShownRegisteredToast;
 
     protected override void OnInitialized()
@@ -72,7 +72,7 @@
     {
         if (firstRender && hasShownRegisteredToast)
         {
-            toastComponent?.ShowToast(
+            ToastService.ShowToast(
                 ToastType.Success,
                 "Success!",
                 "Account created successfully. You can now log in."
@@ -120,7 +120,7 @@
             }
             if (!string.IsNullOrEmpty(errorMessage))
             {
-                toastComponent?.ShowToast(ToastType.Danger, "Error!", errorMessage);
+                ToastService.ShowToast(ToastType.Danger, "Error!", errorMessage);
             }
         }
         catch (Exception ex)
