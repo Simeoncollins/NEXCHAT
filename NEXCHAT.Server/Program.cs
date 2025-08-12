@@ -23,6 +23,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using NEXCHAT.Infrastructure;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -166,25 +167,26 @@ builder.Services.AddRazorPages();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-
-
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+
 if (app.Environment.IsDevelopment())
 {
+    app.UseWebAssemblyDebugging();
     app.UseSwagger();
     app.UseSwaggerUI();
-    app.UseWebAssemblyDebugging();
     app.UseDeveloperExceptionPage();
 }
-app.MapHub<ChatHub>("/chatHub");
-
 app.UseHttpsRedirection();
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
+
+app.UseRouting();
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapRazorPages();
 app.MapControllers();
 app.MapFallbackToFile("index.html");
+app.MapHub<ChatHub>("/chatHub");
+
 app.Run();

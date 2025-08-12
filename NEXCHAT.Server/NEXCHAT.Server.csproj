@@ -27,5 +27,4 @@
     <ProjectReference Include="..\NEXHAT.CoreBusiness\NEXCHAT.CoreBusiness.csproj" />
     <ProjectReference Include="..\Shared\Shared.csproj" />
   </ItemGroup>
-
 </Project>
