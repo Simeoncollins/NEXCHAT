@@ -1,10 +1,9 @@
-﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using NEXCHAT.CoreBusiness;
 using Shared.DTOS;
 using NEXCHAT.UseCases.PluginInterfaces;
@@ -21,20 +20,17 @@ namespace NEXCHAT.Server.Controllers
         private readonly UserManager<User> _userManager;
         private readonly IConfiguration _config;
         private readonly IUpdateUserStatusUseCase _updateUserStatusUseCase;
-        private readonly IRefreshTokenRepository _refreshRepo;      // to save refresh tokens
 
         public AuthController(
           IUserPasswordStore<User> userStore,
           UserManager<User> userManager,
           IConfiguration config,
-          IUpdateUserStatusUseCase updateUserStatusUseCase,
-          IRefreshTokenRepository repo)
+          IUpdateUserStatusUseCase updateUserStatusUseCase)
         {
             _userStore = userStore;
             _userManager = userManager;
             _config = config;
             _updateUserStatusUseCase = updateUserStatusUseCase;
-            _refreshRepo = repo;
         }
 
         [HttpPost("login")]
@@ -44,11 +40,18 @@ namespace NEXCHAT.Server.Controllers
             if (user == null || !await _userManager.CheckPasswordAsync(user, dto.Password))
                 return Unauthorized();
 
-            var accessToken = GenerateJwt(user);
-            var refreshToken = Guid.NewGuid().ToString();
-            await _refreshRepo.SaveAsync(user.UserId, refreshToken, DateTime.UtcNow.AddDays(30));
+            var claims = new[] {
+              new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
+              new Claim(ClaimTypes.Name, user.UserName)
+            };
+
+            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var principal = new ClaimsPrincipal(identity);
+
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
             await _updateUserStatusUseCase.ExecuteAsync(user.UserId, StatusType.Online);
-            return Ok(new TokenResponseDto {UserId = user.UserId, AccessToken = accessToken, RefreshToken = refreshToken });
+            return Ok(new { UserId = user.UserId, Username = user.UserName });
         }
 
         [HttpPost("register")]
@@ -75,42 +78,27 @@ namespace NEXCHAT.Server.Controllers
             return Ok(new { Message = "User registered successfully." });
         }
 
-
-        [HttpPost("refresh")]
-        public async Task<IActionResult> Refresh([FromBody] RefreshDto dto)
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
         {
-            // 1) Validate the stored refresh token from your repository:
-            var valid = await _refreshRepo.ValidateAsync(dto.UserId, dto.RefreshToken);
-            if (!valid) return Unauthorized();
-
-            // 2) Issue a new access token (and optionally a new refresh token):
-            var user = await _userManager.FindByIdAsync(dto.UserId.ToString());
-            var newAccess = GenerateJwt(user);
-            var newRefresh = Guid.NewGuid().ToString();
-            await _refreshRepo.RotateAsync(dto.UserId, dto.RefreshToken, newRefresh, DateTime.UtcNow.AddDays(30));
-
-            return Ok(new TokenResponseDto { UserId = user.UserId, AccessToken = newAccess, RefreshToken = newRefresh });
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!string.IsNullOrEmpty(userId) && Guid.TryParse(userId, out Guid parsedId))
+            {
+                await _updateUserStatusUseCase.ExecuteAsync(parsedId, StatusType.Offline);
+            }
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return Ok();
         }
 
-        private string GenerateJwt(User user)
+        [HttpGet("me")]
+        public IActionResult GetCurrentUser()
         {
-            var creds = new SigningCredentials(
-              new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"])),
-              SecurityAlgorithms.HmacSha256);
-
-            var claims = new[] {
-              new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-              new Claim(ClaimTypes.Name, user.UserName)
-            };
-
-            var token = new JwtSecurityToken(
-              issuer: _config["Jwt:Issuer"],
-              audience: _config["Jwt:Audience"],
-              claims: claims,
-              expires: DateTime.UtcNow.AddMinutes(15),
-              signingCredentials: creds);
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                return Ok(new { UserId = userId, Username = User.Identity.Name });
+            }
+            return Unauthorized();
         }
     }
 }

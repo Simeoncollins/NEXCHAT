@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.SignalR.Client;
 using NEXCHAT.CoreBusiness;
 using NEXCHAT.CoreBusiness.Classes;
@@ -8,7 +8,6 @@ namespace NEXCHAT.Client.Services
     public class ChatSignalRService
     {
         private HubConnection? _hubConnection;
-        private TokenService? _tokenService;
         private readonly NavigationManager _navigation;
 
         public event Action<Message>? OnMessageReceived;
@@ -25,9 +24,8 @@ namespace NEXCHAT.Client.Services
 
         public bool IsConnected => _hubConnection?.State == HubConnectionState.Connected;
 
-        public ChatSignalRService(TokenService tokenService, NavigationManager navigation)
+        public ChatSignalRService(NavigationManager navigation)
         {
-            _tokenService = tokenService;
             _navigation = navigation;
         }
         public async Task ConnectAsync(Guid userId)
@@ -37,15 +35,7 @@ namespace NEXCHAT.Client.Services
 
             var hubUri = _navigation.ToAbsoluteUri($"/chatHub");
             _hubConnection = new HubConnectionBuilder()
-              .WithUrl(hubUri, options =>
-              {
-                  options.AccessTokenProvider = async () =>
-                  {
-                      // grab your JWT from wherever you’ve stored it
-                      var dto = await _tokenService.GetAsync();
-                      return dto?.AccessToken ?? "";
-                  };
-              })
+              .WithUrl(hubUri)
               .WithAutomaticReconnect()
               .Build();
 

@@ -1,7 +1,6 @@
-﻿@page "/auth/login"
+@page "/auth/login"
 @using Shared.DTOS
 @inject HttpClient Http
-@inject TokenService TokenSvc
 @inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthStateProvider
 @layout Layout.AuthLayout
@@ -91,20 +90,17 @@
             var response = await Http.PostAsJsonAsync("api/auth/login", credentials);
             if (response.IsSuccessStatusCode)
             {
-                var tokens = await response.Content.ReadFromJsonAsync<TokenResponseDto>();
-                if (tokens is null)
+                var userObj = await response.Content.ReadFromJsonAsync<NEXCHAT.Client.Services.UserInfoDto>();
+                if (userObj is null)
                 {
                     errorMessage = "Invalid response from server.";
                 }
                 else
                 {
-                    // Persist tokens (localStorage)
-                    await TokenSvc.SaveAsync(tokens);
-
-                    // Notify the auth state provider to re-read the JWT
-                    if (AuthStateProvider is JwtAuthStateProvider jwtProv)
+                    // Notify the auth state provider
+                    if (AuthStateProvider is CookieAuthStateProvider cookieProv)
                     {
-                        jwtProv.NotifyUserAuthentication(tokens.AccessToken);
+                        cookieProv.NotifyUserAuthentication(userObj.Username, userObj.UserId.ToString());
                     }
 
                     Nav.NavigateTo("/");

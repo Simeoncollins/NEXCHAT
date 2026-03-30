@@ -1,6 +1,5 @@
-﻿@page "/auth/logout/{userId:guid}"
+@page "/auth/logout/{userId:guid}"
 @inject AuthenticationStateProvider AuthStateProvider
-@inject TokenService TokenSvc
 @inject NavigationManager Nav
 @inject HttpClient Http
 
@@ -10,15 +9,13 @@
     public Guid userId { get; set; }
     protected override async Task OnInitializedAsync()
     {
-        var content = JsonContent.Create(new UpdateUserStatusDto { UserId = userId, StatusType = StatusType.Offline });
-        var response = await Http.PutAsync($"api/users/status", content);
-        // 1) Clear tokens
-        await TokenSvc.RemoveAsync();
+        // 1) Logout from server (clears cookie)
+        await Http.PostAsync("api/auth/logout", null);
 
         // 2) Notify auth provider of anonymous user
-        if (AuthStateProvider is JwtAuthStateProvider jwtProv)
+        if (AuthStateProvider is CookieAuthStateProvider cookieProv)
         {
-            jwtProv.NotifyUserLogout();
+            cookieProv.NotifyUserLogout();
         }
 
         // 3) Redirect to login

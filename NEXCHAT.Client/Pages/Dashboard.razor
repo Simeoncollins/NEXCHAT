@@ -1,8 +1,7 @@
-﻿@page "/dashboard"
+@page "/dashboard"
 @using NEXCHAT.CoreBusiness.Classes
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IToastService ToastService
-@inject TokenService TokenSvc
 @inject NavigationManager Nav
 @inject HttpClient Http
 @attribute [Authorize]
@@ -75,13 +74,13 @@ else
 
     private async Task Logout()
     {
-        // 1) Clear tokens
-        await TokenSvc.RemoveAsync();
+        // 1) Logout from server
+        await Http.PostAsync("api/auth/logout", null);
 
         // 2) Notify auth provider of anonymous user
-        if (AuthStateProvider is JwtAuthStateProvider jwtProv)
+        if (AuthStateProvider is CookieAuthStateProvider cookieProv)
         {
-            jwtProv.NotifyUserLogout();
+            cookieProv.NotifyUserLogout();
         }
 
         // 3) Redirect to login

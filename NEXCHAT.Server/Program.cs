@@ -1,8 +1,7 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using NEXCHAT.CoreBusiness;
 using NEXCHAT.CoreBusiness.Interfaces;
-using NEXCHAT.Plugin.EFCore;
 using NEXCHAT.Server.Hubs;
 using NEXCHAT.Server.Services;
 using NEXCHAT.UseCases.ConversationManagement;
@@ -18,12 +17,12 @@ using NEXCHAT.UseCases.ReactionManagement;
 using NEXCHAT.UseCases.ReactionManagement.Interfaces;
 using NEXCHAT.UseCases.Users;
 using NEXCHAT.UseCases.Users.Interfaces;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using NEXCHAT.Infrastructure;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.FileProviders;
+using NEXCHAT.Infrastructure.Data;
+using NEXCHAT.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,7 +33,6 @@ builder.Services.AddTransient<IConversationRepository, ConversationRepositoryEfC
 builder.Services.AddTransient<IMessageRepository, MessageRepositoryEfCore>();
 builder.Services.AddTransient<INotificationRepository, NotificationRepositoryEfCore>();
 builder.Services.AddTransient<IReactionRepository, ReactionRepositoryEfCore>();
-builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepositoryEfCore>();
 
 // conversation management
 builder.Services.AddTransient<IAddParticipantToConversationUseCase, AddParticipantToConversationUseCase>();
@@ -109,35 +107,17 @@ builder.Services
 builder.Services.AddScoped<UserRepositoryEfCore>();
 
 
-//jwt brearer
+//cookie auth
 builder.Services.AddAuthentication(options => {
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
 })
-.AddJwtBearer(options => {
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(
-                                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
-    };
-
-    // allow SignalR to read tokens from query string
-    options.Events = new JwtBearerEvents
-    {
-        OnMessageReceived = ctx => {
-            var token = ctx.Request.Query["access_token"];
-            var path = ctx.HttpContext.Request.Path;
-            if (!string.IsNullOrEmpty(token) && path.StartsWithSegments("/chatHub"))
-                ctx.Token = token;
-            return Task.CompletedTask;
-        }
+.AddCookie(options => {
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Events.OnRedirectToLogin = context => {
+        context.Response.StatusCode = 401;
+        return Task.CompletedTask;
     };
 });
 
