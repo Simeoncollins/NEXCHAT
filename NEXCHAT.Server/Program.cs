@@ -93,12 +93,6 @@ builder.Services.AddScoped<IRealTimeNotifier, SignalRNotifier>();
 builder.Services
   // Core Identity services, but without EF’s built‑in stores:
   .AddIdentityCore<User>(options => {
-      options.Password.RequiredLength = 8;
-      options.Password.RequireDigit = true;
-      options.Password.RequireLowercase = true;
-      options.Password.RequireUppercase = true;
-      options.Password.RequireNonAlphanumeric = false;
-      options.Password.RequireDigit = true;
   })
   // Tell Identity to use your custom store for IUserStore<User> + IUserPasswordStore<User>:
   .AddUserStore<UserRepositoryEfCore>()
@@ -128,14 +122,7 @@ builder.Services.AddSignalR();
 builder.Services.AddDbContextFactory<NEXCHATDBContext>((services, options) =>
 {
     var connectionString = builder.Configuration["ConnectionStrings:NexchatConnection"];
-    options.UseSqlServer(
-        connectionString,
-        sql =>
-        {
-            sql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
-            sql.EnableRetryOnFailure(maxRetryCount: 5);
-        }
-    );
+    options.UseSqlite(connectionString);
 }, ServiceLifetime.Scoped);
 
 builder.Services.AddControllers().AddJsonOptions(options => {
@@ -168,5 +155,12 @@ app.MapRazorPages();
 app.MapControllers();
 app.MapFallbackToFile("index.html");
 app.MapHub<ChatHub>("/chatHub");
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<NEXCHATDBContext>>();
+    using var dbContext = dbFactory.CreateDbContext();
+    dbContext.Database.Migrate();
+}
 
 app.Run();

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -160,6 +160,9 @@ namespace NEXCHAT.Infrastructure.Repositories
             context.Messages.Add(message);
             await context.SaveChangesAsync();
 
+            // Load the Sender so the client toast can display the name
+            await context.Entry(message).Reference(m => m.Sender).LoadAsync();
+
             var conversation = await _conversationRepository.GetConversationAsync(message.ConversationId);
             foreach (var participant in conversation.ConversationParticipants)
             {
@@ -202,7 +205,7 @@ namespace NEXCHAT.Infrastructure.Repositories
                 {
                     if (participant.UserId != userId)
                     {
-                        await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessagesDelivered", conversation.ConversationId);
+                        await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessageDelivered", conversation.ConversationId);
                     }
                 }
             }
@@ -212,10 +215,14 @@ namespace NEXCHAT.Infrastructure.Repositories
         {
             await using var context = await _dbContextFactory.CreateDbContextAsync();
 
+            // Only mark messages sent by others (not by the user themselves)
             var unseenMessages = await context.Messages
                 .Where(m => m.ConversationId == conversationId)
+                .Where(m => m.SenderId != userId)    // exclude own messages
                 .Where(m => !m.SeenBy.Any(ms => ms.UserId == userId))
                 .ToListAsync();
+
+            if (!unseenMessages.Any()) return;
 
             var seenEntries = unseenMessages.Select(m => new MessageSeen
             {
@@ -226,11 +233,16 @@ namespace NEXCHAT.Infrastructure.Repositories
 
             await context.MessagesSeen.AddRangeAsync(seenEntries);
             await context.SaveChangesAsync();
+
             var conversation = await _conversationRepository.GetConversationAsync(conversationId);
             foreach (var participant in conversation.ConversationParticipants)
             {
                 if (participant.UserId != userId)
-                    await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessagesSeen", seenEntries);
+                {
+                    // Send each seen entry individually so the client event handler receives a single MessageSeen
+                    foreach (var entry in seenEntries)
+                        await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessagesSeen", entry);
+                }
             }
         }
 

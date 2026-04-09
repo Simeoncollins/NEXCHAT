@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Emit;
@@ -244,70 +244,8 @@ namespace NEXCHAT.Infrastructure.Data
 
             modelBuilder.Entity<User>(User =>
             {
-                // Configure ASP.NET Core Identity properties
                 User.Property(u => u.UserId).HasColumnName("UserId");
                 User.HasKey(u => u.UserId);
-
-                // Seed data
-                User.HasData(
-                    new User
-                    {
-                        UserId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
-                        UserName = "proximacen10",
-                        Email = "proxima@gmail.com",
-                        PasswordHash = sharedPasswordHash,
-                        Phone = "1234567890",
-                        FirstName = "Proxima",
-                        LastName = "Cen",
-                        Country = "United States",
-                        Status = StatusType.Online,
-                        DateJoined = new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                        LastLogin = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                        Bio = "Aspiring writer and tech innovator...",
-                        PhotoPath = "Uploads/User/bettle.jpg",
-                        Roles = new List<string> { "User" },
-                        SecurityQuestion = "What was the name of your first pet?",
-                        SecurityAnswer = "Jessie",
-                    },
-                    new User
-                    {
-                        UserId = Guid.Parse("11111111-1111-1111-1111-111111111112"),
-                        UserName = "astro_photographer",
-                        Email = "astro@example.com",
-                        PasswordHash = sharedPasswordHash,
-                        Phone = "555-1234",
-                        FirstName = "Orion",
-                        LastName = "Starborn",
-                        Country = "Canada",
-                        Status = StatusType.Offline,
-                        DateJoined = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                        LastLogin = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                        Bio = "Night sky enthusiast and telescope collector",
-                        PhotoPath = "Uploads/User/orion.jpg",
-                        Roles = new List<string> { "User" },
-                        SecurityQuestion = "What was the name of your first pet?",
-                        SecurityAnswer = "Jessie",
-                    },
-                    new User
-                    {
-                        UserId = Guid.Parse("11111111-1111-1111-1111-111111111113"),
-                        UserName = "tech_pioneer",
-                        Email = "pioneer@tech.io",
-                        PasswordHash = sharedPasswordHash,
-                        Phone = "+1-555-9876",
-                        FirstName = "Ada",
-                        LastName = "Innovator",
-                        Country = "United Kingdom",
-                        Status = StatusType.Offline,
-                        DateJoined = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                        LastLogin = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                        Bio = "Building the future of communication technology",
-                        PhotoPath = "Uploads/User/ada.jpg",
-                        Roles = new List<string> { "User" },
-                        SecurityQuestion = "What was the name of your first pet?",
-                        SecurityAnswer = "Jessie",
-                    }
-                );
             });
 
             // Seed initial roles

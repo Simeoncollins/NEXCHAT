@@ -1,9 +1,11 @@
-﻿@page "/"
+@page "/"
 @inject AuthenticationStateProvider AuthStateProvider
 @inject HttpClient Http
 @attribute [Authorize]
 @inject ChatSignalRService ChatService
 @inject IToastService ToastService
+@inject NavigationManager Nav
+@implements IDisposable
 
 <PageTitle>Direct messages</PageTitle>
 
@@ -154,7 +156,8 @@
 
 		try
 		{
-			user = await Http.GetFromJsonAsync<User>($"api/users/{userId}/basic");
+			// /api/users/me reads from the auth cookie — no userId in URL needed
+			user = await Http.GetFromJsonAsync<User>("api/users/me");
 		}
 		catch
 		{
@@ -193,34 +196,68 @@
 
 	private async Task InitializeSignalR()
 	{
-
-		// Connect to SignalR
 		await ChatService.ConnectAsync(user.UserId);
 
-		// Subscribe to message events
 		ChatService.OnConversationStarted += HandleConversation;
 		ChatService.OnMessageReceived += HandleNewMessage;
+		ChatService.OnUserStatusChanged += HandleUserStatusChanged;
+	}
+
+	private void HandleUserStatusChanged(UserStatus userStatus)
+	{
+		// Update friend status in the friends strip
+		var friend = friends?.FirstOrDefault(f => f.UserId == userStatus.UserId);
+		if (friend != null) friend.Status = userStatus.Status;
+
+		// Update User objects embedded in conversations (Creator + Participants)
+		if (conversations != null)
+		{
+			foreach (var conv in conversations)
+			{
+				if (conv.Creator?.UserId == userStatus.UserId)
+					conv.Creator.Status = userStatus.Status;
+
+				foreach (var p in conv.ConversationParticipants)
+				{
+					if (p.User?.UserId == userStatus.UserId)
+						p.User.Status = userStatus.Status;
+				}
+			}
+		}
+
+		InvokeAsync(StateHasChanged);
 	}
 
 	private void HandleConversation(Conversation conversation)
 	{
 		conversations.Add(conversation);
-		StateHasChanged();
+		InvokeAsync(StateHasChanged);
 	}
 
 	private void HandleNewMessage(Message message)
 	{
-		ToastService.ShowToast(ToastType.Success, message.Sender.UserName, message.Content, $"/chat/{message.SenderId}");
-		var conversation = conversations.FirstOrDefault(c => c.ConversationId == message.ConversationId);
-		if(conversation != null)
+		// Ignore messages sent by the current user (they don't need a notification or unread bump)
+		if (user != null && message.SenderId == user.UserId) return;
+
+		var conversation = conversations?.FirstOrDefault(c => c.ConversationId == message.ConversationId);
+		if (conversation != null)
 		{
-			if (message.SenderId != user?.UserId)
-			{
-				conversation.UnreadMessagesCount++;
-			}
 			conversation.LastMessage = message;
-			StateHasChanged();
+			conversation.UnreadMessagesCount++;
 		}
+
+		// Show toast popup with sender info; clicking navigates to the chat
+		var senderName = message.Sender?.UserName ?? "Someone";
+		ToastService.ShowToast(ToastType.Info, senderName, message.Content, $"/chat/{message.SenderId}");
+
+		InvokeAsync(StateHasChanged);
+	}
+
+	public void Dispose()
+	{
+		ChatService.OnConversationStarted -= HandleConversation;
+		ChatService.OnMessageReceived -= HandleNewMessage;
+		ChatService.OnUserStatusChanged -= HandleUserStatusChanged;
 	}
 
 }

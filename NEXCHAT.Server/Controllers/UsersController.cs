@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Shared.DTOS;
 using NEXCHAT.UseCases.Users;
 using NEXCHAT.UseCases.Users.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using NEXCHAT.CoreBusiness;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace NEXCHAT.Server.Controllers
 {
@@ -42,7 +44,20 @@ namespace NEXCHAT.Server.Controllers
             return Ok(user);
         }
         
-        // GET: api/users/{userId}
+        // GET: api/users/me — reads from the auth cookie, no userId needed
+        [Authorize]
+        [HttpGet("me")]
+        public async Task<IActionResult> GetCurrentUser()
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
+            var user = await userManager.FindByIdAsync(userIdStr);
+            if (user == null) return NotFound();
+            return Ok(user);
+        }
+
+        // GET: api/users/{userId}/basic — look up another user by id
+        [Authorize]
         [HttpGet("{userId}/basic")]
         public async Task<IActionResult> GetUserBasicInfoById(Guid userId)
         {

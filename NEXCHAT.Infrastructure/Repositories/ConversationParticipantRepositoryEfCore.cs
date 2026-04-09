@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -58,7 +58,7 @@ namespace NEXCHAT.Infrastructure.Repositories
 
                 // Set unread message count
                 conversation.UnreadMessagesCount = conversation.Messages
-                    .Count(m => !m.SeenBy.Any(sb => sb.UserId == userId));
+                    .Count(m => m.SenderId != userId && !m.SeenBy.Any(sb => sb.UserId == userId));
             }
 
             return conversations;

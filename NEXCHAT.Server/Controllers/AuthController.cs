@@ -48,7 +48,14 @@ namespace NEXCHAT.Server.Controllers
             var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             var principal = new ClaimsPrincipal(identity);
 
-            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+            await HttpContext.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                principal,
+                new AuthenticationProperties
+                {
+                    IsPersistent = true,
+                    ExpiresUtc = DateTimeOffset.UtcNow.AddDays(30)
+                });
 
             await _updateUserStatusUseCase.ExecuteAsync(user.UserId, StatusType.Online);
             return Ok(new { UserId = user.UserId, Username = user.UserName });

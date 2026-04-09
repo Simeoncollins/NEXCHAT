@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -105,8 +105,9 @@ namespace NEXCHAT.Infrastructure.Repositories
 
         public async Task<User> FindByIdAsync(string userId, CancellationToken cancellationToken)
         {
+            if (!Guid.TryParse(userId, out var parsedId)) return null;
             await using var context = await _dbContextFactory.CreateDbContextAsync();
-            return await context.Users.FirstOrDefaultAsync(u => u.UserId.ToString() == userId);
+            return await context.Users.FirstOrDefaultAsync(u => u.UserId == parsedId, cancellationToken);
         }
 
         public async Task<User> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)

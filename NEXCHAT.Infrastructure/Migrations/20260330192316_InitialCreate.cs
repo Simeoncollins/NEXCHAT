@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace NEXCHAT.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class Initial : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -17,9 +17,9 @@ namespace NEXCHAT.Infrastructure.Migrations
                 name: "Reactions",
                 columns: table => new
                 {
-                    ReactionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ReactionName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    EmojiPath = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    ReactionId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ReactionName = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
+                    EmojiPath = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -30,12 +30,12 @@ namespace NEXCHAT.Infrastructure.Migrations
                 name: "RefreshTokens",
                 columns: table => new
                 {
-                    RefreshTokenId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Token = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    IsRevoked = table.Column<bool>(type: "bit", nullable: false)
+                    RefreshTokenId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Token = table.Column<string>(type: "TEXT", nullable: false),
+                    ExpiresAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    IsRevoked = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -46,10 +46,10 @@ namespace NEXCHAT.Infrastructure.Migrations
                 name: "Roles",
                 columns: table => new
                 {
-                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
-                    NormalizedName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
-                    ConcurrencyStamp = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                    Id = table.Column<string>(type: "TEXT", nullable: false),
+                    Name = table.Column<string>(type: "TEXT", maxLength: 256, nullable: true),
+                    NormalizedName = table.Column<string>(type: "TEXT", maxLength: 256, nullable: true),
+                    ConcurrencyStamp = table.Column<string>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -60,22 +60,22 @@ namespace NEXCHAT.Infrastructure.Migrations
                 name: "Users",
                 columns: table => new
                 {
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    FirstName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    LastName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Email = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Phone = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Country = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Bio = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    SecurityQuestion = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    SecurityAnswer = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
-                    DateJoined = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    LastLogin = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Roles = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    PhotoPath = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    UserName = table.Column<string>(type: "TEXT", nullable: false),
+                    FirstName = table.Column<string>(type: "TEXT", nullable: false),
+                    LastName = table.Column<string>(type: "TEXT", nullable: false),
+                    Email = table.Column<string>(type: "TEXT", nullable: false),
+                    PasswordHash = table.Column<string>(type: "TEXT", nullable: false),
+                    Phone = table.Column<string>(type: "TEXT", nullable: false),
+                    Country = table.Column<string>(type: "TEXT", nullable: false),
+                    Bio = table.Column<string>(type: "TEXT", nullable: false),
+                    SecurityQuestion = table.Column<string>(type: "TEXT", nullable: false),
+                    SecurityAnswer = table.Column<string>(type: "TEXT", nullable: false),
+                    Status = table.Column<string>(type: "TEXT", maxLength: 10, nullable: false),
+                    DateJoined = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    LastLogin = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    Roles = table.Column<string>(type: "TEXT", nullable: false),
+                    PhotoPath = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -86,12 +86,12 @@ namespace NEXCHAT.Infrastructure.Migrations
                 name: "Conversations",
                 columns: table => new
                 {
-                    ConversationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CreatorId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    DateStartedUTC = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    IsGroupConversation = table.Column<bool>(type: "bit", nullable: false),
-                    GroupName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    GroupCoverPhotoPath = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    ConversationId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    CreatorId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    DateStartedUTC = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    IsGroupConversation = table.Column<bool>(type: "INTEGER", nullable: false),
+                    GroupName = table.Column<string>(type: "TEXT", nullable: false),
+                    GroupCoverPhotoPath = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -108,12 +108,12 @@ namespace NEXCHAT.Infrastructure.Migrations
                 name: "Notifications",
                 columns: table => new
                 {
-                    NotificationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    NotificationType = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
-                    Content = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    DateSent = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    IsSeen = table.Column<bool>(type: "bit", nullable: false)
+                    NotificationId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    NotificationType = table.Column<string>(type: "TEXT", maxLength: 10, nullable: false),
+                    Content = table.Column<string>(type: "TEXT", nullable: false),
+                    DateSent = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    IsSeen = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -130,10 +130,10 @@ namespace NEXCHAT.Infrastructure.Migrations
                 name: "UserFriends",
                 columns: table => new
                 {
-                    RequesterId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ReceiverId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    RequesterId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ReceiverId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Status = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -156,8 +156,8 @@ namespace NEXCHAT.Infrastructure.Migrations
                 name: "ConversationParticipants",
                 columns: table => new
                 {
-                    ConversationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+                    ConversationId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    UserId = table.Column<Guid>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -180,8 +180,8 @@ namespace NEXCHAT.Infrastructure.Migrations
                 name: "ConversationTypingUsers",
                 columns: table => new
                 {
-                    ConversationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+                    ConversationId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    UserId = table.Column<Guid>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -204,15 +204,15 @@ namespace NEXCHAT.Infrastructure.Migrations
                 name: "Messages",
                 columns: table => new
                 {
-                    MessageId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Content = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    SenderId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ConversationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    IsEdited = table.Column<bool>(type: "bit", nullable: false),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
-                    IsDelivered = table.Column<bool>(type: "bit", nullable: false),
-                    DateSentUTC = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    MessageId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Content = table.Column<string>(type: "TEXT", nullable: false),
+                    SenderId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ConversationId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    IsEdited = table.Column<bool>(type: "INTEGER", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "INTEGER", nullable: false),
+                    IsDelivered = table.Column<bool>(type: "INTEGER", nullable: false),
+                    DateSentUTC = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -235,10 +235,10 @@ namespace NEXCHAT.Infrastructure.Migrations
                 name: "MessageReactions",
                 columns: table => new
                 {
-                    UserReactedId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    MessageId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    MessageReactionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ReactionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+                    UserReactedId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    MessageId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    MessageReactionId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ReactionId = table.Column<Guid>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -267,9 +267,9 @@ namespace NEXCHAT.Infrastructure.Migrations
                 name: "MessagesSeen",
                 columns: table => new
                 {
-                    MessageId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    SeenAtUTC = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    MessageId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    SeenAtUTC = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -399,8 +399,7 @@ namespace NEXCHAT.Infrastructure.Migrations
                 name: "IX_Roles_NormalizedName",
                 table: "Roles",
                 column: "NormalizedName",
-                unique: true,
-                filter: "[NormalizedName] IS NOT NULL");
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserFriends_ReceiverId",

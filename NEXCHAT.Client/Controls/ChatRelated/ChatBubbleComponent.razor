@@ -1,4 +1,4 @@
-﻿<!-- chat bubble component -->
+<!-- chat bubble component -->
 @if(!IsCurrentUser)
 {
 	<div class="flex flex-col items-start)">
@@ -43,18 +43,19 @@ else
 				</small>
 
 				<div class="message-status" style="font-size:12px;">
-
-					@if ((message.SeenBy.Count > 1 && message.SeenBy.Any(u => u.UserId == userId)) || 
-						(message.SeenBy.Count > 0 && !message.SeenBy.Any(u => u.UserId == userId)))
+					@if (isSeen)
 					{
+						<!-- Double blue ticks: seen by the recipient -->
 						<i class="fas fa-check-double text-cyan-400"></i>
 					}
 					else if (message.IsDelivered)
 					{
+						<!-- Double grey ticks: delivered but not yet seen -->
 						<i class="fas fa-check-double text-gray-400"></i>
 					}
 					else
 					{
+						<!-- Single grey tick: sent, not yet delivered -->
 						<i class="fas fa-check text-gray-400"></i>
 					}
 				</div>
@@ -77,4 +78,13 @@ else
 
 	[Parameter]
 	public Message? message { get; set; }
+
+	/// <summary>
+	/// True if any recipient other than the sender has seen this message.
+	/// Passed from the parent so that changes trigger a re-render.
+	/// </summary>
+	private bool isSeen => message?.SeenBy?.Any(s => s.UserId != userId) == true;
+
+	protected override bool ShouldRender() => true;
 }
+

@@ -1,4 +1,4 @@
-﻿@page "/chat/{friendId:guid}"
+@page "/chat/{friendId:guid}"
 @layout Layout.AuthLayout
 @inject AuthenticationStateProvider AuthStateProvider
 @inject HttpClient Http
@@ -6,6 +6,7 @@
 @inject IJSRuntime JSRuntime
 @inject ChatSignalRService ChatService
 @inject IToastService ToastService
+@implements IDisposable
 
 <PageTitle>Chat-@friendName</PageTitle>
 <div class="flex items-center space-x-4 py-4 px-8 border-b border-white/10 fixed w-full top-0 backdrop-blur-lg chatHeader" style="z-index:99">
@@ -73,7 +74,7 @@
 						IsCurrentUser="msg.SenderId == user.UserId"
 						Friend="friend" />
 					</Virtualize>
-					if(conversation.ParticipantsTyping.Any())
+					if(conversation?.ParticipantsTyping?.Any() == true)
 					{
 						<TypingIndicatorComponent UserId="user.UserId" TypingUsers="conversation.ParticipantsTyping" />
 					}
@@ -241,7 +242,7 @@
 
 		try
 		{
-			user = await Http.GetFromJsonAsync<User>($"api/users/{userId}/basic");
+			user = await Http.GetFromJsonAsync<User>("api/users/me");
 			friend = await Http.GetFromJsonAsync<User>($"api/users/{friendId}/basic");
 		}
 		catch
@@ -279,6 +280,9 @@
 				}
 				if (conversation != null)
 				{
+					// Clear any stale typing indicators left from previous sessions
+					conversation.ParticipantsTyping.Clear();
+
 					var url = $"api/messages/conversation?conversationId={conversationId}&pageIndex={pageIndex}&pageSize={pageSize}";
 					var newMessages = await Http.GetFromJsonAsync<List<Message>>(url);
 					if (newMessages != null)
@@ -326,7 +330,8 @@
 	private void HandleTypingUsersChanged(UserTyping userTyping)
 	{
 		if (conversationId != userTyping.ConversationId) return;
-		
+		if (conversation == null) return; // no conversation yet, ignore typing events
+
 		lock (typingLock)
 		{
 			if (userTyping.IsTyping)
@@ -372,6 +377,7 @@
 		{
 			lock (typingLock)
 			{
+				if (conversation == null) return;
 				var cutoff = DateTime.UtcNow.AddSeconds(-5);
 				conversation.ParticipantsTyping.RemoveAll(u => u.LastTypingTime < cutoff);
 			}
@@ -391,15 +397,22 @@
 		// Only process messages for current conversation
 		if (message.ConversationId == conversationId)
 		{
-			// Update message status if it's from current user (optimistic update)
-			if (message.SenderId == user.UserId)
+			// Deduplicate: if we already added this message optimistically, update it instead of adding a duplicate
+			var existing = messages.FirstOrDefault(m => m.MessageId == message.MessageId);
+			if (existing != null)
 			{
-				message.IsDelivered = true;
+				// Update delivery status on the existing optimistic message
+				existing.IsDelivered = message.IsDelivered;
+				InvokeAsync(StateHasChanged);
+				return;
 			}
 
+			// New message from the other participant — add it
 			messages.Add(message);
 			shouldScrollToBottom = true;
-			StateHasChanged();
+			// User is currently in this chat — auto-mark as seen
+			InvokeAsync(markNewMessagesAsSeen);
+			InvokeAsync(StateHasChanged);
 
 			playRecievedMessageSound();
 		}
@@ -424,17 +437,28 @@
 	{
 		// Update seen status for sent messages
 		foreach (var msg in messages.Where(m =>
-			m.SenderId == user.UserId &&
-			m.IsDelivered))
+			m.SenderId == user?.UserId &&
+			m.IsDelivered &&
+			!m.SeenBy.Any(s => s.UserId == seen.UserId)))
 		{
 			msg.SeenBy.Add(seen);
 		}
-		StateHasChanged();
+		InvokeAsync(StateHasChanged);
 	}
 
 	private void playRecievedMessageSound()
 	{
 		// play sound
+	}
+
+	public void Dispose()
+	{
+		_typingCleanupTimer?.Dispose();
+		ChatService.OnMessageReceived -= HandleNewMessage;
+		ChatService.OnMessageDelivered -= HandleMessageDelivery;
+		ChatService.OnMessageSeen -= HandleMessageSeen;
+		ChatService.OnUserStatusChanged -= HandleStatusChange;
+		ChatService.OnTypingUsers -= HandleTypingUsersChanged;
 	}
 
 }

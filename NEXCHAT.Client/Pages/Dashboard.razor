@@ -50,17 +50,10 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
-        var userIdClaim = auth.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!Guid.TryParse(userIdClaim, out var userId))
-        {
-            isLoading = false;
-            return;
-        }
-
         try
         {
-            user = await Http.GetFromJsonAsync<User>($"api/users/{userId}/basic");
+            // reads from auth cookie — no userId in URL needed
+            user = await Http.GetFromJsonAsync<User>("api/users/me");
         }
         catch
         {

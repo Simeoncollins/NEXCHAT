@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NEXCHAT.Infrastructure.Data;
 
@@ -10,9 +11,11 @@ using NEXCHAT.Infrastructure.Data;
 namespace NEXCHAT.Infrastructure.Migrations
 {
     [DbContext(typeof(NEXCHATDBContext))]
-    partial class NEXCHATDBContextModelSnapshot : ModelSnapshot
+    [Migration("20260330192316_InitialCreate")]
+    partial class InitialCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.5");
@@ -416,6 +419,65 @@ namespace NEXCHAT.Infrastructure.Migrations
                     b.HasKey("UserId");
 
                     b.ToTable("Users");
+
+                    b.HasData(
+                        new
+                        {
+                            UserId = new Guid("11111111-1111-1111-1111-111111111111"),
+                            Bio = "Aspiring writer and tech innovator...",
+                            Country = "United States",
+                            DateJoined = new DateTime(2023, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Email = "proxima@gmail.com",
+                            FirstName = "Proxima",
+                            LastLogin = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            LastName = "Cen",
+                            PasswordHash = "AQAAAAIAAYagAAAAEBWuvAH8bLsGDStNP11zDw42A3H2kcA+T0dYM/sVp1D2nS+hIy/85ADCgN9ShVURVw==",
+                            Phone = "1234567890",
+                            PhotoPath = "Uploads/User/bettle.jpg",
+                            Roles = "[\"User\"]",
+                            SecurityAnswer = "Jessie",
+                            SecurityQuestion = "What was the name of your first pet?",
+                            Status = "Online",
+                            UserName = "proximacen10"
+                        },
+                        new
+                        {
+                            UserId = new Guid("11111111-1111-1111-1111-111111111112"),
+                            Bio = "Night sky enthusiast and telescope collector",
+                            Country = "Canada",
+                            DateJoined = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Email = "astro@example.com",
+                            FirstName = "Orion",
+                            LastLogin = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            LastName = "Starborn",
+                            PasswordHash = "AQAAAAIAAYagAAAAEBWuvAH8bLsGDStNP11zDw42A3H2kcA+T0dYM/sVp1D2nS+hIy/85ADCgN9ShVURVw==",
+                            Phone = "555-1234",
+                            PhotoPath = "Uploads/User/orion.jpg",
+                            Roles = "[\"User\"]",
+                            SecurityAnswer = "Jessie",
+                            SecurityQuestion = "What was the name of your first pet?",
+                            Status = "Offline",
+                            UserName = "astro_photographer"
+                        },
+                        new
+                        {
+                            UserId = new Guid("11111111-1111-1111-1111-111111111113"),
+                            Bio = "Building the future of communication technology",
+                            Country = "United Kingdom",
+                            DateJoined = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Email = "pioneer@tech.io",
+                            FirstName = "Ada",
+                            LastLogin = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            LastName = "Innovator",
+                            PasswordHash = "AQAAAAIAAYagAAAAEBWuvAH8bLsGDStNP11zDw42A3H2kcA+T0dYM/sVp1D2nS+hIy/85ADCgN9ShVURVw==",
+                            Phone = "+1-555-9876",
+                            PhotoPath = "Uploads/User/ada.jpg",
+                            Roles = "[\"User\"]",
+                            SecurityAnswer = "Jessie",
+                            SecurityQuestion = "What was the name of your first pet?",
+                            Status = "Offline",
+                            UserName = "tech_pioneer"
+                        });
                 });
 
             modelBuilder.Entity("NEXCHAT.CoreBusiness.UserFriend", b =>
