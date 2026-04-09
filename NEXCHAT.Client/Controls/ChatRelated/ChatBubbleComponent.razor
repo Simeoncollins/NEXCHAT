@@ -1,21 +1,39 @@
 <!-- chat bubble component -->
-@if(!IsCurrentUser)
+@if (!IsCurrentUser)
 {
-	<div class="flex flex-col items-start)">
+	<div class="flex flex-col items-start rounded-lg transition-all @(IsSelected ? "bg-cyan-400/10 ring-1 ring-cyan-400/30" : "") px-2 py-1">
 		@if (message != null)
 		{
 			<div class="flex items-start space-x-2">
-				@if (!IsCurrentUser && friend != null)
+				@if (friend != null)
 				{
 					<NavLink href="@($"/profile/{friend.UserId}")" class="min-fit">
 						<UserImageComponent Src="@(string.IsNullOrEmpty(friend.PhotoPath) ? friend.UserName.Substring(0, 2).ToUpper() : friend.PhotoPath)" />
 					</NavLink>
 				}
 
-
-				<div class="chat-bubble chat-bubble-left">
-					<p>@message.Content</p>
+				<div class="chat-bubble chat-bubble-left @(message.IsDeleted ? "opacity-60" : "")">
+					@if (message.IsDeleted)
+					{
+						<p class="italic text-gray-400"><i class="fas fa-ban mr-1"></i>This message was deleted</p>
+					}
+					else
+					{
+						<p>@message.Content</p>
+						@if (message.IsEdited)
+						{
+							<span class="text-xs text-gray-500 ml-1">edited</span>
+						}
+					}
 				</div>
+
+				@if (!message.IsDeleted)
+				{
+					<button class="text-gray-400 hover:text-white self-center px-1 focus:outline-none"
+							@onclick="OpenMenu" @onclick:stopPropagation="true" title="More">
+						<i class="fas fa-ellipsis-v text-xs"></i>
+					</button>
+				}
 			</div>
 
 			<div class="flex items-center space-x-2" style="margin-left:47px;">
@@ -23,68 +41,82 @@
 					@message.DateSentUTC.ToLocalTime().ToString("hh:mm tt")
 				</small>
 			</div>
-
 		}
 	</div>
 }
-
 else
 {
-	<div class="flex flex-col items-end">
+	<div class="flex flex-col rounded-lg transition-all @(IsSelected ? "bg-cyan-400/10 ring-1 ring-cyan-400/30" : "") px-2 py-1">
 		@if (message != null)
 		{
-			<div class="chat-bubble chat-bubble-right">
-				<p>@message.Content</p>
+			<div class="flex items-center space-x-2 group" style="align-items:flex-end;justify-content: flex-end;">
+
+				@if (!message.IsDeleted)
+				{
+					<button class="text-gray-400 hover:text-white self-center px-1 focus:outline-none"
+							@onclick="OpenMenu" @onclick:stopPropagation="true" title="More">
+						<i class="fas fa-ellipsis-v text-xs"></i>
+					</button>
+				}
+
+				<div class="chat-bubble chat-bubble-right @(message.IsDeleted ? "opacity-60" : "")">
+					@if (message.IsDeleted)
+					{
+						<p class="italic text-gray-400"><i class="fas fa-ban mr-1"></i>This message was deleted</p>
+					}
+					else
+					{
+						<p>@message.Content</p>
+						@if (message.IsEdited)
+						{
+							<span class="text-xs text-gray-500 ml-1">edited</span>
+						}
+					}
+				</div>
 			</div>
 
-			<div class="flex items-center space-x-2">
+			<div class="flex items-center space-x-2" style="align-self: flex-end;">
 				<small class="message-timestamp">
 					@message.DateSentUTC.ToLocalTime().ToString("hh:mm tt")
 				</small>
 
-				<div class="message-status" style="font-size:12px;">
-					@if (isSeen)
-					{
-						<!-- Double blue ticks: seen by the recipient -->
-						<i class="fas fa-check-double text-cyan-400"></i>
-					}
-					else if (message.IsDelivered)
-					{
-						<!-- Double grey ticks: delivered but not yet seen -->
-						<i class="fas fa-check-double text-gray-400"></i>
-					}
-					else
-					{
-						<!-- Single grey tick: sent, not yet delivered -->
-						<i class="fas fa-check text-gray-400"></i>
-					}
-				</div>
-
+				@if (!message.IsDeleted)
+				{
+					<div class="message-status" style="font-size:12px;">
+						@if (isSeen)
+						{
+							<i class="fas fa-check-double text-cyan-400"></i>
+						}
+						else if (message.IsDelivered)
+						{
+							<i class="fas fa-check-double text-gray-400"></i>
+						}
+						else
+						{
+							<i class="fas fa-check text-gray-400"></i>
+						}
+					</div>
+				}
 			</div>
-
 		}
 	</div>
 }
 
 @code {
-	[Parameter]
-	public bool IsCurrentUser { get; set; } = true;
+	[Parameter] public bool IsCurrentUser { get; set; } = true;
+	[Parameter] public bool IsSelected { get; set; } = false;
+	[Parameter] public Guid userId { get; set; }
+	[Parameter] public User? friend { get; set; }
+	[Parameter] public Message? message { get; set; }
+	[Parameter] public EventCallback<Message> OnMenuOpen { get; set; }
 
-	[Parameter]
-	public Guid userId { get; set; }
-
-	[Parameter]
-	public User? friend { get; set; }
-
-	[Parameter]
-	public Message? message { get; set; }
-
-	/// <summary>
-	/// True if any recipient other than the sender has seen this message.
-	/// Passed from the parent so that changes trigger a re-render.
-	/// </summary>
 	private bool isSeen => message?.SeenBy?.Any(s => s.UserId != userId) == true;
 
 	protected override bool ShouldRender() => true;
-}
 
+	private async Task OpenMenu()
+	{
+		if (message != null)
+			await OnMenuOpen.InvokeAsync(message);
+	}
+}

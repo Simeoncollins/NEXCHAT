@@ -70,9 +70,12 @@
 							</div>
 						}
 
-						<ChatBubbleComponent Message="msg"
+						<ChatBubbleComponent message="msg"
 						IsCurrentUser="msg.SenderId == user.UserId"
-						Friend="friend" />
+						IsSelected="selectedMessage?.MessageId == msg.MessageId"
+						friend="friend"
+						userId="user.UserId"
+						OnMenuOpen="OpenMessageMenu" />
 					</Virtualize>
 					if(conversation?.ParticipantsTyping?.Any() == true)
 					{
@@ -91,15 +94,92 @@
 	</div>
 </main>
 
+<!-- ═══════════════════════════ BOTTOM SHEET ═══════════════════════════ -->
+@if (selectedMessage != null)
+{
+	<!-- Backdrop: clicking outside dismisses the sheet -->
+	<div class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+		 @onclick="CloseBottomSheet"></div>
+
+	<!-- Sheet panel -->
+	<div class="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 border-t border-white/10 rounded-t-2xl shadow-2xl
+				animate-slide-up" @onclick:stopPropagation="true">
+
+		<!-- Handle bar -->
+		<div class="flex justify-center pt-3 pb-1">
+			<div class="w-10 h-1 bg-white/20 rounded-full"></div>
+		</div>
+
+		<!-- Message preview -->
+		<div class="px-6 py-3 border-b border-white/10">
+			<p class="text-xs text-gray-400 mb-1">@(selectedMessage.SenderId == user?.UserId ? "Your message" : friend?.UserName ?? "Message")</p>
+			<p class="text-sm text-white truncate">@selectedMessage.Content</p>
+		</div>
+
+		<!-- Action buttons -->
+		<div class="flex flex-col py-2">
+
+			<!-- Copy — always available -->
+			<button class="flex items-center px-6 py-4 text-white hover:bg-white/5 transition-colors"
+					@onclick="CopySelectedMessage">
+				<div class="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center mr-4">
+					<i class="fas fa-copy text-gray-300"></i>
+				</div>
+				<span class="font-medium">Copy</span>
+			</button>
+
+			@if (selectedMessage.SenderId == user?.UserId)
+			{
+				<!-- Edit —  own messages only -->
+				<button class="flex items-center px-6 py-4 text-white hover:bg-white/5 transition-colors"
+						@onclick="EditSelectedMessage">
+					<div class="w-9 h-9 rounded-full bg-cyan-400/20 flex items-center justify-center mr-4">
+						<i class="fas fa-pencil-alt text-cyan-400"></i>
+					</div>
+					<span class="font-medium">Edit</span>
+				</button>
+
+				<!-- Delete — own messages only -->
+				<button class="flex items-center px-6 py-4 text-red-400 hover:bg-white/5 transition-colors"
+						@onclick="DeleteSelectedMessage">
+					<div class="w-9 h-9 rounded-full bg-red-500/20 flex items-center justify-center mr-4">
+						<i class="fas fa-trash text-red-400"></i>
+					</div>
+					<span class="font-medium">Delete</span>
+				</button>
+			}
+		</div>
+
+		<!-- Safe area spacer -->
+		<div style="height: env(safe-area-inset-bottom, 12px)"></div>
+	</div>
+}
+
 <div class="fixed bottom-0 w-full bg-black/80 backdrop-blur-lg border-t border-white/10">
 	<div class="container mx-auto px-4 py-3">
+		@if (editingMessage != null)
+		{
+			<!-- Edit preview bar -->
+			<div class="flex items-center justify-between bg-cyan-400/10 border border-cyan-400/30 rounded-lg px-4 py-2 mb-2">
+				<div class="flex items-center space-x-2">
+					<i class="fas fa-pencil-alt text-cyan-400 text-xs"></i>
+					<div>
+						<p class="text-xs text-cyan-400 font-semibold">Editing message</p>
+						<p class="text-xs text-gray-400 truncate max-w-xs">@editingMessage.Content</p>
+					</div>
+				</div>
+				<button class="text-gray-400 hover:text-white" @onclick="CancelEdit">
+					<i class="fas fa-times"></i>
+				</button>
+			</div>
+		}
 		<div class="flex items-end space-x-2">
-			<textarea value="@message" @oninput="@((e) => OnInputChanged(e))"
-			placeholder="Send a message..."
-			class="messageTxt flex-grow bg-black/30 border border-cyan-400/20 rounded-lg px-4 py-2 text-white focus:border-cyan-400 focus:outline-none"></textarea>
+			<textarea @ref="messageInputRef" value="@message" @oninput="@((e) => OnInputChanged(e))"
+			placeholder="@(editingMessage != null ? "Edit your message..." : "Send a message...")"
+			class="messageTxt flex-grow bg-black/30 border @(editingMessage != null ? "border-cyan-400/60" : "border-cyan-400/20") rounded-lg px-4 py-2 text-white focus:border-cyan-400 focus:outline-none"></textarea>
 
 			<button class="text-white hover:text-cyan-400 transition-colors" @onclick="sendMessage">
-				<i class="fas fa-paper-plane text-xl"></i>
+				<i class="fas @(editingMessage != null ? "fa-check" : "fa-paper-plane") text-xl"></i>
 			</button>
 		</div>
 	</div>
@@ -132,8 +212,12 @@
 
 	private bool messagesMarked = false;
 
+	private Message? editingMessage = null;
+	private Message? selectedMessage = null;   // drives the bottom sheet
+
 	private readonly object typingLock = new object();
 	private Timer? _typingCleanupTimer;
+	private ElementReference messageInputRef;
 
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
@@ -165,7 +249,25 @@
 		{
 			if (user == null || friend == null) return;
 
-			bool isDelivered = friend.Status == StatusType.Online ? true : false;
+			// ── EDIT MODE ──────────────────────────────────────────────
+			if (editingMessage != null)
+			{
+				var newContent = message;
+				editingMessage.Content = newContent;
+				editingMessage.IsEdited = true;
+				var targetId = editingMessage.MessageId;
+				CancelEdit();
+				try
+				{
+					await Http.PutAsync($"api/messages/{targetId}/edit",
+						JsonContent.Create(newContent));
+				}
+				catch { }
+				return;
+			}
+
+			// ── SEND NEW MESSAGE ───────────────────────────────────────
+			bool isDelivered = friend.Status == StatusType.Online;
 			Guid messageId = Guid.NewGuid();
 			DateTime date = DateTime.UtcNow;
 			
@@ -227,6 +329,67 @@
 				StateHasChanged();
 			}
 		}
+	}
+
+	private void OpenMessageMenu(Message msg)
+	{
+		selectedMessage = msg;
+		StateHasChanged();
+	}
+
+	private void CloseBottomSheet()
+	{
+		selectedMessage = null;
+		StateHasChanged();
+	}
+
+	private void EditSelectedMessage()
+	{
+		var msg = selectedMessage;
+		CloseBottomSheet();
+		if (msg != null) HandleEditRequest(msg);
+	}
+
+	private async Task DeleteSelectedMessage()
+	{
+		var msg = selectedMessage;
+		CloseBottomSheet();
+		if (msg != null) await HandleDeleteRequest(msg);
+	}
+
+	private async Task CopySelectedMessage()
+	{
+		if (selectedMessage != null)
+			await JSRuntime.InvokeVoidAsync("copyToClipboard", selectedMessage.Content);
+		CloseBottomSheet();
+	}
+
+	private void HandleEditRequest(Message msg)
+	{
+		editingMessage = msg;
+		message = msg.Content;
+		InvokeAsync(async () =>
+		{
+			StateHasChanged();
+			await Task.Delay(50);
+			await JSRuntime.InvokeVoidAsync("focusElement", messageInputRef);
+		});
+	}
+
+	private async Task HandleDeleteRequest(Message msg)
+	{
+		try
+		{
+			await Http.DeleteAsync($"api/messages/{msg.MessageId}");
+		}
+		catch { }
+	}
+
+	private void CancelEdit()
+	{
+		editingMessage = null;
+		message = "";
+		StateHasChanged();
 	}
 
 	protected async override Task OnInitializedAsync()
@@ -326,6 +489,8 @@
 		ChatService.OnMessageSeen += HandleMessageSeen;
 		ChatService.OnUserStatusChanged += HandleStatusChange;
 		ChatService.OnTypingUsers += HandleTypingUsersChanged;
+		ChatService.OnMessageEdited += HandleMessageEdited;
+		ChatService.OnMessageDeleted += HandleMessageDeleted;
 	}
 	private void HandleTypingUsersChanged(UserTyping userTyping)
 	{
@@ -451,6 +616,28 @@
 		// play sound
 	}
 
+	private void HandleMessageEdited(Message updated)
+	{
+		var existing = messages?.FirstOrDefault(m => m.MessageId == updated.MessageId);
+		if (existing != null)
+		{
+			existing.Content = updated.Content;
+			existing.IsEdited = true;
+		}
+		InvokeAsync(StateHasChanged);
+	}
+
+	private void HandleMessageDeleted(Guid deletedId)
+	{
+		var existing = messages?.FirstOrDefault(m => m.MessageId == deletedId);
+		if (existing != null)
+		{
+			existing.Content = "This message was deleted";
+			existing.IsDeleted = true;
+		}
+		InvokeAsync(StateHasChanged);
+	}
+
 	public void Dispose()
 	{
 		_typingCleanupTimer?.Dispose();
@@ -459,6 +646,8 @@
 		ChatService.OnMessageSeen -= HandleMessageSeen;
 		ChatService.OnUserStatusChanged -= HandleStatusChange;
 		ChatService.OnTypingUsers -= HandleTypingUsersChanged;
+		ChatService.OnMessageEdited -= HandleMessageEdited;
+		ChatService.OnMessageDeleted -= HandleMessageDeleted;
 	}
 
 }

@@ -81,20 +81,26 @@ namespace NEXCHAT.Infrastructure.Repositories
             message.Content = "This message was deleted";
             message.IsDeleted = true;
             message.ModifiedAt = DateTime.UtcNow;
+            // Clear reactions by removing them
+            await context.MessageReactions
+                .Where(r => r.MessageId == messageId)
+                .ExecuteDeleteAsync();
 
             await context.SaveChangesAsync();
+
+            // Broadcast to ALL participants (including sender) so every client updates
             foreach (var participant in conversation.ConversationParticipants)
-            {
-                if (participant.UserId != message.SenderId)
-                    await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessageDeleted", true);
-            }
+                await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessageDeleted", messageId);
         }
 
         public async Task EditMessageAsync(Guid messageId, string newContent)
         {
             await using var context = await _dbContextFactory.CreateDbContextAsync();
 
-            var message = await context.Messages.FindAsync(messageId);
+            var message = await context.Messages
+                .Include(m => m.SeenBy)
+                .Include(m => m.Reactions).ThenInclude(r => r.Reaction)
+                .FirstOrDefaultAsync(m => m.MessageId == messageId);
             if (message == null) return;
             var conversation = await _conversationRepository.GetConversationAsync(message.ConversationId);
             message.Content = newContent;
@@ -102,11 +108,10 @@ namespace NEXCHAT.Infrastructure.Repositories
             message.ModifiedAt = DateTime.UtcNow;
 
             await context.SaveChangesAsync();
+
+            // Broadcast to ALL participants (including sender) so every client updates
             foreach (var participant in conversation.ConversationParticipants)
-            {
-                if (participant.UserId != message.SenderId)
-                    await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessageEdited", true);
-            }
+                await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessageEdited", message);
         }
 
         public async Task<IEnumerable<Message>> GetMessagesInConversationAsync(Guid conversationId, int page, int pageSize)
@@ -114,7 +119,7 @@ namespace NEXCHAT.Infrastructure.Repositories
             await using var context = await _dbContextFactory.CreateDbContextAsync();
 
             var baseQuery = context.Messages
-                .Where(m => m.ConversationId == conversationId && !m.IsDeleted)
+                .Where(m => m.ConversationId == conversationId)  // include deleted so bubble shows "This message was deleted"
                 .OrderBy(m => m.DateSentUTC)
                 .Include(m => m.SeenBy)
                 .Include(m => m.Reactions)

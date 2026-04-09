@@ -11,8 +11,8 @@ namespace NEXCHAT.Client.Services
         private readonly NavigationManager _navigation;
 
         public event Action<Message>? OnMessageReceived;
-        public event Action<bool>? OnMessageDeleted;
-        public event Action<bool>? OnMessageEdited;
+        public event Action<Guid>? OnMessageDeleted;
+        public event Action<Message>? OnMessageEdited;
         public event Action<Guid>? OnMessageDelivered;
         public event Action<MessageSeen>? OnMessageSeen;
         public event Action<ReactionEvent>? OnReactionReceived;
@@ -56,12 +56,12 @@ namespace NEXCHAT.Client.Services
                 OnMessageReceived?.Invoke(message);
             });
 
-            _hubConnection.On<bool>("MessageDeleted", deleted =>
+            _hubConnection.On<Guid>("MessageDeleted", deletedId =>
             {
-                OnMessageDeleted?.Invoke(deleted);
+                OnMessageDeleted?.Invoke(deletedId);
             });
 
-            _hubConnection.On<bool>("MessageEdited", edited =>
+            _hubConnection.On<Message>("MessageEdited", edited =>
             {
                 OnMessageEdited?.Invoke(edited);
             });
