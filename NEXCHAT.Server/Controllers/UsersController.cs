@@ -86,5 +86,35 @@ namespace NEXCHAT.Server.Controllers
             await updateUserStatusUseCase.ExecuteAsync(dto.UserId, dto.StatusType);
             return NoContent();
         }
+        // PUT: api/users/me — update own profile fields
+        [Authorize]
+        [HttpPut("me")]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto)
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(userIdStr, out _)) return Unauthorized();
+            var user = await userManager.FindByIdAsync(userIdStr!);
+            if (user == null) return NotFound();
+
+            user.FirstName = dto.FirstName ?? user.FirstName;
+            user.LastName  = dto.LastName  ?? user.LastName;
+            user.Bio       = dto.Bio       ?? user.Bio;
+            user.Country   = dto.Country   ?? user.Country;
+            user.Phone     = dto.Phone     ?? user.Phone;
+            user.PhotoPath = dto.PhotoPath ?? user.PhotoPath;
+
+            var result = await userManager.UpdateAsync(user);
+            if (!result.Succeeded) return BadRequest(result.Errors);
+            return Ok(user);
+        }
     }
 }
+
+public record UpdateProfileDto(
+    string? FirstName,
+    string? LastName,
+    string? Bio,
+    string? Country,
+    string? Phone,
+    string? PhotoPath
+);

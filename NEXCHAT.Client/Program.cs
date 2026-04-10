@@ -10,6 +10,7 @@ builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddScoped<ChatSignalRService>();
 builder.Services.AddScoped<IToastService, ToastService>();
+builder.Services.AddScoped<UserProfileStateService>();
 
 // authentication state
 builder.Services.AddScoped<AuthenticationStateProvider, CookieAuthStateProvider>();

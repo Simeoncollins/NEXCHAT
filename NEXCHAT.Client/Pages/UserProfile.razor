@@ -1,0 +1,268 @@
+@page "/profile/{UserId:guid}"
+@inject AuthenticationStateProvider AuthStateProvider
+@inject HttpClient Http
+@inject IToastService ToastService
+@inject NavigationManager Nav
+@attribute [Authorize]
+@using System.Security.Claims
+@using NEXCHAT.CoreBusiness
+@using NEXCHAT.CoreBusiness.Enums
+
+<PageTitle>User Profile</PageTitle>
+
+<main class="flex-grow pt-6 pb-24" data-aos="fade-in" style="margin-top: 80px;">
+    <div class="container mx-auto px-4 max-w-6xl">
+        
+        @if (isLoading)
+        {
+            <div class="flex items-center space-x-6 animate-pulse pt-10">
+                <div class="w-32 h-32 rounded-full bg-gray-700"></div>
+                <div class="flex flex-col space-y-3 flex-1">
+                    <div class="h-6 w-1/3 bg-gray-700 rounded"></div>
+                    <div class="h-4 w-1/4 bg-gray-700 rounded"></div>
+                </div>
+            </div>
+        }
+        else if (profileUser == null)
+        {
+            <div class="pt-20">
+                <p class="text-center text-red-400">User not found.</p>
+            </div>
+        }
+        else
+        {
+            <div class="flex flex-col lg:flex-row gap-8 items-start">
+                
+                <!-- Left Column: User Header Card -->
+                <div class="w-full lg:w-1/3 bg-gray-800/40 border border-white/5 rounded-3xl p-6 md:p-8 backdrop-blur-md shadow-2xl flex flex-col items-center text-center">
+                    
+                    <!-- Avatar -->
+                    <div class="relative flex-shrink-0 mb-6">
+                        @if (!string.IsNullOrEmpty(profileUser.PhotoPath))
+                        {
+                            <img src="@profileUser.PhotoPath" alt="@profileUser.UserName" class="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-gray-700 shadow-xl" />
+                        }
+                        else
+                        {
+                            <div class="w-32 h-32 md:w-40 md:h-40 rounded-full bg-gradient-to-br from-cyan-400/80 to-purple-500/80 flex items-center justify-center text-4xl md:text-5xl font-bold text-gray-900 border-4 border-gray-700 shadow-xl">
+                                @(profileUser.UserName.Length >= 2 ? profileUser.UserName[..2].ToUpper() : profileUser.UserName.ToUpper())
+                            </div>
+                        }
+                        <span class="absolute bottom-3 right-3 w-6 h-6 rounded-full border-4 border-gray-800 @(profileUser.Status == StatusType.Online ? "bg-green-400" : "bg-gray-500")"></span>
+                    </div>
+
+                    <!-- Names & Actions -->
+                    <h2 class="text-3xl font-extrabold text-white tracking-tight mb-1">
+                        @(string.IsNullOrEmpty(profileUser.FirstName) && string.IsNullOrEmpty(profileUser.LastName) ? "Unknown" : $"{profileUser.FirstName} {profileUser.LastName}")
+                    </h2>
+                    <p class="text-lg text-cyan-400 font-medium mb-6">@("@")@profileUser.UserName</p>
+                    
+                    <div class="w-full flex-col gap-3">
+                        @if (isFriend)
+                        {
+                            <button @onclick="GoToChat" disabled="@isActing"
+                                    class="w-full py-3 rounded-full bg-cyan-500 hover:bg-cyan-400 text-gray-900 font-bold transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)] flex items-center justify-center gap-2">
+                                <i class="fas fa-comment text-sm"></i> Message
+                            </button>
+                        }
+                        else if (hasPendingIncoming)
+                        {
+                            <button @onclick="AcceptRequest" disabled="@isActing"
+                                    class="w-full py-3 rounded-full bg-green-500 hover:bg-green-400 text-gray-900 font-bold transition-all shadow-[0_0_15px_rgba(34,197,94,0.4)] flex items-center justify-center gap-2">
+                                @if (isActing) { <i class="fas fa-circle-notch fa-spin text-sm"></i> } else { <i class="fas fa-user-check text-sm"></i> }
+                                Accept Request
+                            </button>
+                        }
+                        else if (requestSent)
+                        {
+                            <button disabled
+                                    class="w-full py-3 rounded-full bg-gray-700 text-gray-400 font-bold flex items-center justify-center gap-2 cursor-not-allowed">
+                                <i class="fas fa-clock text-sm"></i> Request Sent
+                            </button>
+                        }
+                        else
+                        {
+                            <button @onclick="SendFriendRequest" disabled="@isActing"
+                                    class="w-full py-3 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-cyan-400 font-bold transition-all flex items-center justify-center gap-2">
+                                @if (isActing) { <i class="fas fa-circle-notch fa-spin text-sm"></i> } else { <i class="fas fa-user-plus text-sm"></i> }
+                                Add Friend
+                            </button>
+                        }
+                    </div>
+                </div> <!-- End Left Column -->
+
+                <!-- Right Column: Profile Info / List -->
+                <div class="w-full lg:w-2/3">
+                    <div class="bg-gray-800/30 border border-white/5 rounded-3xl p-6 md:p-8 backdrop-blur-md h-full">
+                        <h3 class="text-xl font-bold text-white mb-8 pl-3 border-l-4 border-cyan-400">Profile Details</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-10">
+                            
+                            <!-- Email -->
+                            <div class="flex items-start gap-4">
+                                <div class="mt-1 w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-cyan-400 flex-shrink-0">
+                                    <i class="fas fa-envelope text-lg"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">Email</p>
+                                    <p class="text-base text-gray-200 truncate pr-4">@(string.IsNullOrEmpty(profileUser.Email) ? "Unknown" : profileUser.Email)</p>
+                                </div>
+                            </div>
+
+                            <!-- Phone -->
+                            <div class="flex items-start gap-4">
+                                <div class="mt-1 w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-cyan-400 flex-shrink-0">
+                                    <i class="fas fa-phone text-lg"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">Phone</p>
+                                    <p class="text-base text-gray-200">@(string.IsNullOrEmpty(profileUser.Phone) ? "Unknown" : profileUser.Phone)</p>
+                                </div>
+                            </div>
+
+                            <!-- Country -->
+                            <div class="flex items-start gap-4">
+                                <div class="mt-1 w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-cyan-400 flex-shrink-0">
+                                    <i class="fas fa-globe text-lg"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">Location</p>
+                                    <p class="text-base text-gray-200">@(string.IsNullOrEmpty(profileUser.Country) ? "Unknown" : profileUser.Country)</p>
+                                </div>
+                            </div>
+
+                            <!-- Date Joined -->
+                            <div class="flex items-start gap-4">
+                                <div class="mt-1 w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-cyan-400 flex-shrink-0">
+                                    <i class="fas fa-calendar-alt text-lg"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">Date Joined</p>
+                                    <p class="text-base text-gray-200">@profileUser.DateJoined.ToLocalTime().ToString("MMM dd, yyyy")</p>
+                                </div>
+                            </div>
+
+                            <!-- Last Seen (If offline) -->
+                            @if (profileUser.Status == StatusType.Offline)
+                            {
+                                <div class="flex items-start gap-4">
+                                    <div class="mt-1 w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-cyan-400 flex-shrink-0">
+                                        <i class="fas fa-clock text-lg"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">Last Seen</p>
+                                        <p class="text-base text-gray-200">@profileUser.LastLogin.ToLocalTime().ToString("g")</p>
+                                    </div>
+                                </div>
+                            }
+
+                            <!-- Bio -->
+                            <div class="flex items-start gap-4 md:col-span-2 mt-2">
+                                <div class="mt-1 w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-cyan-400 flex-shrink-0">
+                                    <i class="fas fa-quote-left text-lg"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">Bio</p>
+                                    <p class="text-base text-gray-200 leading-relaxed whitespace-pre-wrap">@(string.IsNullOrEmpty(profileUser.Bio) ? "Unknown" : profileUser.Bio)</p>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div> <!-- End Right Column -->
+            </div>
+        }
+    </div>
+</main>
+
+@code {
+    [Parameter] public Guid UserId { get; set; }
+
+    private User? profileUser;
+    private User? currentUser;
+    private bool isLoading = true;
+    private bool isFriend = false;
+    private bool requestSent = false;
+    private bool hasPendingIncoming = false;
+    private bool isActing = false;
+    private Guid currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var idStr = auth.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(idStr, out currentUserId)) { isLoading = false; return; }
+
+        if (currentUserId == UserId) { Nav.NavigateTo("/profile", replace: true); return; }
+
+        try
+        {
+            profileUser  = await Http.GetFromJsonAsync<User>($"api/users/{UserId}/basic");
+            currentUser  = await Http.GetFromJsonAsync<User>($"api/users/{currentUserId}/detailed");
+
+            if (currentUser != null && profileUser != null)
+            {
+                isFriend = currentUser.isFriend(UserId);
+
+                var sentReq = currentUser.SentFriendRequests
+                    .FirstOrDefault(r => r.ReceiverId == UserId && r.Status == NEXCHAT.CoreBusiness.Enums.FriendRequestStatus.Pending);
+                requestSent = sentReq != null;
+
+                var incomingReq = currentUser.ReceivedFriendRequests
+                    .FirstOrDefault(r => r.RequesterId == UserId && r.Status == NEXCHAT.CoreBusiness.Enums.FriendRequestStatus.Pending);
+                hasPendingIncoming = incomingReq != null;
+            }
+        }
+        catch { profileUser = null; }
+        finally { isLoading = false; }
+    }
+
+    private async Task SendFriendRequest()
+    {
+        isActing = true;
+        try
+        {
+            var resp = await Http.PostAsync($"api/friends/{currentUserId}/send?recieverId={UserId}", null);
+            if (resp.IsSuccessStatusCode)
+            {
+                requestSent = true;
+                ToastService.ShowToast(ToastType.Success, "Request Sent!", "Friend request sent.");
+            }
+        }
+        catch { ToastService.ShowToast(ToastType.Danger, "Error!", "Could not send request."); }
+        finally { isActing = false; }
+    }
+
+    private async Task AcceptRequest()
+    {
+        isActing = true;
+        try
+        {
+            var resp = await Http.PostAsync($"api/friends/{UserId}/accept?recieverId={currentUserId}", null);
+            if (resp.IsSuccessStatusCode)
+            {
+                isFriend = true;
+                hasPendingIncoming = false;
+                ToastService.ShowToast(ToastType.Success, "Friends!", "You are now friends.");
+            }
+        }
+        catch { ToastService.ShowToast(ToastType.Danger, "Error!", "Could not accept request."); }
+        finally { isActing = false; }
+    }
+
+    private async Task GoToChat()
+    {
+        isActing = true;
+        try
+        {
+            var dto = new { CreatorId = currentUserId, ConversationdId = Guid.Empty, Participants = new[] { UserId }, IsGroup = false, Message = "", GroupName = "" };
+            var resp = await Http.PostAsJsonAsync("api/conversations/start", dto);
+            if (resp.IsSuccessStatusCode)
+            {
+                Nav.NavigateTo($"/chat/{UserId}");
+            }
+        }
+        catch { ToastService.ShowToast(ToastType.Danger, "Error!", "Could not open chat."); }
+        finally { isActing = false; }
+    }
+}

@@ -1,7 +1,7 @@
 ﻿@if (Src.Length > 2)
 {
 	<div class="relative min-fit">
-		<img src="@Src" alt="Profile" class="w-10 h-10 rounded-full border-2 border-white">
+		<img src="@Src" alt="Profile" class="w-10 h-10 rounded-full border-2 border-white" style="object-fit: cover">
 		@if (UserStatus == StatusType.Online){
 			<span class="absolute w-3 h-3 rounded-full bottom-0 right-0 border-2" style="background-color: #1edf1e;"></span>
 		}

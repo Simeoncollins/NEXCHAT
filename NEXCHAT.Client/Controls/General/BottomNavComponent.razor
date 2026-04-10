@@ -1,4 +1,5 @@
-﻿<nav class="fixed bottom-0 w-full bg-gray-900 backdrop-blur-lg flex justify-around items-center h-16">
+<div class="fixed bottom-4 left-0 right-0 flex justify-center z-50 pointer-events-none data-aos-no-push">
+    <nav class="w-full max-w-sm mx-4 bg-gray-900/90 backdrop-blur-md rounded-full border border-gray-700 shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex justify-around items-center h-16 pointer-events-auto px-2">
     <!-- Chats -->
     <NavLink class="flex flex-col items-center hover:text-cyan-400 transition-colors" ActiveClass="text-cyan-400" href="/" Match="NavLinkMatch.All">
         <i class="fas fa-comments text-xl"></i>
@@ -18,10 +19,11 @@
     </NavLink>
    
    
-    <!-- Notifications -->
-    <NavLink class="flex flex-col items-center hover:text-cyan-400 transition-colors" ActiveClass="text-cyan-400" href="/notifications" Match="NavLinkMatch.All">
-        <i class="fas fa-bell text-xl"></i>
-        <span class="text-xs">Notifications</span>
+    <!-- Profile -->
+    <NavLink class="flex flex-col items-center hover:text-cyan-400 transition-colors" ActiveClass="text-cyan-400" href="/profile" Match="NavLinkMatch.All">
+        <i class="fas fa-user text-xl"></i>
+        <span class="text-xs">Profile</span>
     </NavLink>
-</nav>
+    </nav>
+</div>
 

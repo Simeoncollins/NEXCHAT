@@ -169,9 +169,12 @@ namespace NEXCHAT.Infrastructure.Repositories
             user.Email = normalizedName;
             return Task.CompletedTask;
         }
-        public Task<IdentityResult> UpdateAsync(User user, CancellationToken cancellationToken)
+        public async Task<IdentityResult> UpdateAsync(User user, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
+            context.Users.Update(user);
+            await context.SaveChangesAsync(cancellationToken);
+            return IdentityResult.Success;
         }
 
         // IUserPasswordStore implementation
