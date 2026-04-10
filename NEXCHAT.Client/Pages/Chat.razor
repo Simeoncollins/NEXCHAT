@@ -70,7 +70,9 @@
 							</div>
 						}
 
-						<ChatBubbleComponent message="msg"
+						<ChatBubbleComponent 
+						@key="@(msg.MessageId.ToString() + "-" + (msg.Reactions?.Count ?? 0))"
+						message="msg"
 						IsCurrentUser="msg.SenderId == user.UserId"
 						IsSelected="selectedMessage?.MessageId == msg.MessageId"
 						friend="friend"
@@ -113,8 +115,29 @@
 		<!-- Message preview -->
 		<div class="px-6 py-3 border-b border-white/10">
 			<p class="text-xs text-gray-400 mb-1">@(selectedMessage.SenderId == user?.UserId ? "Your message" : friend?.UserName ?? "Message")</p>
-			<p class="text-sm text-white truncate">@selectedMessage.Content</p>
+			<div class="text-sm text-white overflow-hidden" style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">
+				@selectedMessage.Content
+			</div>
 		</div>
+
+		<!-- Reactions Row -->
+		@if (availableReactions.Any() && selectedMessage.SenderId != user?.UserId)
+		{
+			<div class="px-6 py-4 border-b border-white/10 grid grid-cols-4 gap-4 justify-items-center">
+				@foreach (var reaction in availableReactions)
+				{
+					bool isSelected = selectedMessage.Reactions?.Any(r => r.ReactionId == reaction.ReactionId && r.UserReactedId == user?.UserId) == true;
+					<button class="w-12 h-12 rounded-full flex items-center justify-center transition-colors @(isSelected ? "bg-cyan-500/30 border border-cyan-400" : "bg-gray-800 hover:bg-gray-700")"
+							@onclick="() => ToggleReaction(reaction)">
+						<dotlottie-player src="@reaction.EmojiPath" 
+										  background="transparent" 
+										  speed="1" 
+										  style="width: 32px; height: 32px;" 
+										  loop autoplay></dotlottie-player>
+					</button>
+				}
+			</div>
+		}
 
 		<!-- Action buttons -->
 		<div class="flex flex-col py-2">
@@ -214,6 +237,7 @@
 
 	private Message? editingMessage = null;
 	private Message? selectedMessage = null;   // drives the bottom sheet
+	private List<Reaction> availableReactions = new();
 
 	private readonly object typingLock = new object();
 	private Timer? _typingCleanupTimer;
@@ -364,6 +388,73 @@
 		CloseBottomSheet();
 	}
 
+	private void ToggleReaction(Reaction reaction)
+	{
+		var msgId = selectedMessage?.MessageId;
+		if (msgId == null || user == null || selectedMessage == null) return;
+
+		var alreadyHas = selectedMessage.Reactions?.FirstOrDefault(r => r.ReactionId == reaction.ReactionId && r.UserReactedId == user.UserId);
+
+		// Optimistic Update
+		if (selectedMessage.Reactions == null)
+			selectedMessage.Reactions = new List<MessageReaction>();
+
+		if (alreadyHas != null)
+		{
+			selectedMessage.Reactions.Remove(alreadyHas);
+		}
+		else
+		{
+			// Remove any other existing reaction by this user on this message
+			var existing = selectedMessage.Reactions.FirstOrDefault(r => r.UserReactedId == user.UserId);
+			if (existing != null) selectedMessage.Reactions.Remove(existing);
+
+			selectedMessage.Reactions.Add(new MessageReaction
+			{
+				ReactionId = reaction.ReactionId,
+				UserReactedId = user.UserId,
+				MessageId = msgId.Value,
+				Reaction = reaction
+			});
+		}
+
+		// Force object reference change to trigger Blazor parameter redraw
+		var idx = messages.IndexOf(selectedMessage);
+		if (idx != -1)
+		{
+			messages[idx] = new Message
+			{
+				MessageId = selectedMessage.MessageId,
+				ConversationId = selectedMessage.ConversationId,
+				SenderId = selectedMessage.SenderId,
+				Sender = selectedMessage.Sender,
+				Content = selectedMessage.Content,
+				DateSentUTC = selectedMessage.DateSentUTC,
+				IsDeleted = selectedMessage.IsDeleted,
+				IsEdited = selectedMessage.IsEdited,
+				IsDelivered = selectedMessage.IsDelivered,
+				SeenBy = selectedMessage.SeenBy?.ToList() ?? new List<MessageSeen>(),
+				Reactions = selectedMessage.Reactions?.ToList() ?? new List<MessageReaction>()
+			};
+			selectedMessage = messages[idx];
+		}
+
+		StateHasChanged();
+		CloseBottomSheet();
+		// Fire API request in background
+		_ = Task.Run(async () =>
+		{
+			try
+			{
+				if (alreadyHas != null)
+					await Http.DeleteAsync($"api/messages/{msgId.Value}/reaction?userId={user.UserId}");
+				else
+					await Http.PostAsync($"api/messages/{msgId.Value}/reaction?userId={user.UserId}&reactionId={reaction.ReactionId}", null);
+			}
+			catch { }
+		});
+	}
+
 	private void HandleEditRequest(Message msg)
 	{
 		editingMessage = msg;
@@ -407,6 +498,8 @@
 		{
 			user = await Http.GetFromJsonAsync<User>("api/users/me");
 			friend = await Http.GetFromJsonAsync<User>($"api/users/{friendId}/basic");
+			var reactions = await Http.GetFromJsonAsync<List<Reaction>>("api/reactions");
+			if (reactions != null) availableReactions = reactions;
 		}
 		catch
 		{
@@ -491,6 +584,7 @@
 		ChatService.OnTypingUsers += HandleTypingUsersChanged;
 		ChatService.OnMessageEdited += HandleMessageEdited;
 		ChatService.OnMessageDeleted += HandleMessageDeleted;
+		ChatService.OnReactionReceived += HandleReactionReceived;
 	}
 	private void HandleTypingUsersChanged(UserTyping userTyping)
 	{
@@ -638,6 +732,22 @@
 		InvokeAsync(StateHasChanged);
 	}
 
+	private void HandleReactionReceived(ReactionEvent reactionEvent)
+	{
+		var existing = messages?.FirstOrDefault(m => m.MessageId == reactionEvent.message.MessageId);
+		if (existing != null)
+		{
+			var idx = messages.IndexOf(existing);
+			if (idx != -1)
+			{
+				// Replace the entire object reference with the incoming one
+				// to force Blazor's Parameter tracking engine to redraw.
+				messages[idx] = reactionEvent.message;
+			}
+		}
+		InvokeAsync(StateHasChanged);
+	}
+
 	public void Dispose()
 	{
 		_typingCleanupTimer?.Dispose();
@@ -648,6 +758,7 @@
 		ChatService.OnTypingUsers -= HandleTypingUsersChanged;
 		ChatService.OnMessageEdited -= HandleMessageEdited;
 		ChatService.OnMessageDeleted -= HandleMessageDeleted;
+		ChatService.OnReactionReceived -= HandleReactionReceived;
 	}
 
 }

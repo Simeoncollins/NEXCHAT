@@ -40,6 +40,7 @@ namespace NEXCHAT.Infrastructure.Repositories
 
             var message = await context.Messages
                 .Include(m => m.Reactions)
+                    .ThenInclude(r => r.Reaction)
                 .FirstOrDefaultAsync(m => m.MessageId == messageId);
 
             if (message == null) return;
@@ -50,6 +51,7 @@ namespace NEXCHAT.Infrastructure.Repositories
             if (existingReaction != null)
             {
                 existingReaction.ReactionId = reactionId;
+                existingReaction.Reaction = reaction;
             }
             else
             {
@@ -57,16 +59,23 @@ namespace NEXCHAT.Infrastructure.Repositories
                 {
                     ReactionId = reactionId,
                     UserReactedId = userId,
-                    MessageId = messageId
+                    MessageId = messageId,
+                    Reaction = reaction
                 });
             }
 
             await context.SaveChangesAsync();
 
+            foreach (var r in message.Reactions)
+            {
+                r.Message = null; // break circular reference for SignalR JSON serializer
+            }
+            message.Conversation = null;
+            message.Sender = null;
+
             foreach (var participant in conversation.ConversationParticipants)
             {
-                if (participant.UserId != userId)
-                    await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessageReacted", new ReactionEvent(message, reaction));
+                await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessageReacted", new ReactionEvent(message, reaction));
             }
         }
 
@@ -137,24 +146,31 @@ namespace NEXCHAT.Infrastructure.Repositories
         {
             await using var context = await _dbContextFactory.CreateDbContextAsync();
 
-            var reaction = await context.MessageReactions
-                .FirstOrDefaultAsync(r => r.MessageId == messageId && r.UserReactedId == userId);
-
             var message = await context.Messages
                 .Include(m => m.Reactions)
+                    .ThenInclude(r => r.Reaction)
                 .FirstOrDefaultAsync(m => m.MessageId == messageId);
+
+            if (message == null) return;
             var conversation = await _conversationRepository.GetConversationAsync(message.ConversationId);
 
-            if (reaction != null)
+            var existingReaction = message.Reactions.FirstOrDefault(r => r.UserReactedId == userId);
+            if (existingReaction != null)
             {
-                context.MessageReactions.Remove(reaction);
+                message.Reactions.Remove(existingReaction);
                 await context.SaveChangesAsync();
-            }
-            
-            foreach (var participant in conversation.ConversationParticipants)
-            {
-                if (participant.UserId != userId)
-                    await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "ReactionRemoved", true);
+                
+                foreach (var r in message.Reactions)
+                {
+                    r.Message = null; // break circular reference
+                }
+                message.Conversation = null;
+                message.Sender = null;
+
+                foreach (var participant in conversation.ConversationParticipants)
+                {
+                    await _notifier.NotifyGroupAsync($"user-{participant.UserId}", "MessageReacted", new ReactionEvent(message, new Reaction()));
+                }
             }
         }
 

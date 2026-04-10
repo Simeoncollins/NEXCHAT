@@ -276,10 +276,8 @@ namespace NEXCHAT.Infrastructure.Data
                     new Reaction { ReactionId = Guid.Parse("11111111-1111-1111-1111-111111111116"), ReactionName = "Angel", EmojiPath = "https://lottie.host/9ef73a79-293c-496c-82f7-ed27c40d63eb/RGg5Ewhxx3.lottie" },
                     new Reaction { ReactionId = Guid.Parse("11111111-1111-1111-1111-111111111117"), ReactionName = "Kiss", EmojiPath = "https://lottie.host/30a2c4c6-0277-4b7d-8d85-f8fd6ddbdb88/Zg2ds75R2E.lottie" },
                     new Reaction { ReactionId = Guid.Parse("11111111-1111-1111-1111-111111111118"), ReactionName = "Dissapointed", EmojiPath = "https://lottie.host/5bda14b0-e838-4074-bb58-e85f6608db6d/ovIILqAs4u.lottie" },
-                    new Reaction { ReactionId = Guid.Parse("11111111-1111-1111-1111-111111111119"), ReactionName = "Angry" , EmojiPath = "https://lottie.host/a4cff48f-156f-4114-b27e-cff7bd0f29a6/hE5NQSPEyA.lottie" },
                     new Reaction { ReactionId = Guid.Parse("11111111-1111-1111-1111-111111111100"), ReactionName = "Unhappy" , EmojiPath = "https://lottie.host/76e83562-9204-4362-9fcc-60a17e219d40/nrBKNNLnfZ.lottie" },
                     new Reaction { ReactionId = Guid.Parse("11111111-1111-1111-1111-111111111122"), ReactionName = "Suprised" , EmojiPath = "https://lottie.host/29d5ff89-287f-42d1-89bc-25b695e2ed7f/hZFip2GqwA.lottie" },
-                    new Reaction { ReactionId = Guid.Parse("11111111-1111-1111-1111-111111111133"), ReactionName = "Cool" , EmojiPath = "https://lottie.host/632a0f85-69e8-4b70-8d67-02c1c2e08365/XJNJAOQu8D.lottie" },
                     new Reaction { ReactionId = Guid.Parse("11111111-1111-1111-1111-111111111144"), ReactionName = "Crying" , EmojiPath = "https://lottie.host/1ba46ee9-b4d2-44c7-baa8-8fa0adc4ccb7/oc0HMXijhA.lottie" }
                 );
             }); 
