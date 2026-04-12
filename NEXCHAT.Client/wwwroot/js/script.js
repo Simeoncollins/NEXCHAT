@@ -32,4 +32,13 @@ async function copyToClipboard(text) {
 window.scrollToBottom = scrollToBottom;
 window.focusElement = focusElement;
 window.copyToClipboard = copyToClipboard;
+
+window.playAudio = function(url) {
+    try {
+        var audio = new Audio(url);
+        audio.play().catch(e => console.warn('Audio play failed:', e));
+    } catch(err) {
+        console.warn('Audio logic error:', err);
+    }
+};
 

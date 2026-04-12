@@ -242,6 +242,7 @@
 	private readonly object typingLock = new object();
 	private Timer? _typingCleanupTimer;
 	private ElementReference messageInputRef;
+    private bool isTypingSent = false;
 
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
@@ -258,12 +259,14 @@
 
 		if (conversation == null) return;
 
-		if (message.Length > 0)
+		if (message.Length > 0 && !isTypingSent)
 		{
+            isTypingSent = true;
 			await Http.PostAsync($"api/conversations/{conversationId}/typing-indicator?userId={user.UserId}&isTyping=true", null);
 		}
-		else if (message.Length == 0)
+		else if (message.Length == 0 && isTypingSent)
 		{
+            isTypingSent = false;
 			await Http.PostAsync($"api/conversations/{conversationId}/typing-indicator?userId={user.UserId}&isTyping=false", null);
 		}
 	}
@@ -294,6 +297,16 @@
 			bool isDelivered = friend.Status == StatusType.Online;
 			Guid messageId = Guid.NewGuid();
 			DateTime date = DateTime.UtcNow;
+            
+            // Revert typing indicator
+            if (isTypingSent)
+            {
+                isTypingSent = false;
+                _ = Http.PostAsync($"api/conversations/{conversationId}/typing-indicator?userId={user.UserId}&isTyping=false", null);
+            }
+            
+            // Play send sound optimistically
+            _ = PlayAudioAsync("/audio/message_sent.wav");
 			
 			Message newMessage = new Message
 				{
@@ -707,8 +720,15 @@
 
 	private void playRecievedMessageSound()
 	{
-		// play sound
+		_ = PlayAudioAsync("/audio/message_recieved.mp3");
 	}
+
+    private async Task PlayAudioAsync(string path)
+    {
+        try {
+            await JSRuntime.InvokeVoidAsync("playAudio", path);
+        } catch { }
+    }
 
 	private void HandleMessageEdited(Message updated)
 	{

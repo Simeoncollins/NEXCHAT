@@ -40,6 +40,24 @@
                 </button>
             </div>
         </EditForm>
+        
+        <!-- Demo Credentials -->
+        <div class="mt-6 bg-gray-800/50 border border-cyan-500/30 rounded-xl p-4">
+            <p class="text-xs text-gray-400 mb-3 text-center uppercase tracking-wider font-bold">Demo Credentials (Click to load)</p>
+            <div class="flex gap-2">
+                <button type="button" @onclick='() => LoadDemo("johndoe", "John1234.")' class="flex-1 text-xs py-2 px-3 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition text-left text-gray-300">
+                    <span class="block text-cyan-400 font-bold mb-1"><i class="fas fa-user mr-1"></i> John Doe</span>
+                    <span class="block">U: johndoe</span>
+                    <span class="block">P: John1234.</span>
+                </button>
+                <button type="button" @onclick='() => LoadDemo("janesmith", "Jane1234.")' class="flex-1 text-xs py-2 px-3 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition text-left text-gray-300">
+                    <span class="block text-purple-400 font-bold mb-1"><i class="fas fa-user mr-1"></i> Jane Smith</span>
+                    <span class="block">U: janesmith</span>
+                    <span class="block">P: Jane1234.</span>
+                </button>
+            </div>
+        </div>
+
         <!-- Signup Link -->
         <p class="mt-6 text-center text-sm text-gray-300">
             Don't have an account?
@@ -80,6 +98,13 @@
             hasShownRegisteredToast = false; // only once
         }
     }
+
+    private void LoadDemo(string username, string password)
+    {
+        credentials.Username = username;
+        credentials.Password = password;
+    }
+
     private async Task HandleLogin()
     {
         isSubmitting = true;

@@ -2,6 +2,10 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject HttpClient Http
 @inject NEXCHAT.Client.Services.UserProfileStateService ProfileState
+@inject NEXCHAT.Client.Services.ChatSignalRService ChatService
+@inject IToastService ToastService
+@inject NavigationManager Nav
+@inject IJSRuntime JSRuntime
 @implements IDisposable
 
 <ToastContainer />
@@ -55,6 +59,8 @@
     protected override async Task OnInitializedAsync()
     {
         ProfileState.OnProfileUpdated += ProfileUpdatedHandler;
+        ChatService.OnMessageReceived += HandleNewMessageGlobally;
+
         var auth = await AuthStateProvider.GetAuthenticationStateAsync();
         var userIdClaim = auth.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (!Guid.TryParse(userIdClaim, out var userId))
@@ -121,5 +127,21 @@
     public void Dispose()
     {
         ProfileState.OnProfileUpdated -= ProfileUpdatedHandler;
+        ChatService.OnMessageReceived -= HandleNewMessageGlobally;
+    }
+
+    private void HandleNewMessageGlobally(Message message)
+    {
+        if (user != null && message.SenderId == user.UserId) return;
+
+        var currentUri = Nav.Uri;
+        bool isInsideChat = currentUri.Contains($"/chat/{message.SenderId}", StringComparison.OrdinalIgnoreCase);
+
+        if (!isInsideChat)
+        {
+            _ = JSRuntime.InvokeVoidAsync("playAudio", "/audio/notification_received.mp3");
+            var senderName = message.Sender?.UserName ?? "Someone";
+            ToastService.ShowToast(ToastType.Info, senderName, message.Content, $"/chat/{message.SenderId}");
+        }
     }
 }

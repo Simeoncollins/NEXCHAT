@@ -223,6 +223,8 @@
 		ChatService.OnConversationStarted += HandleConversation;
 		ChatService.OnMessageReceived += HandleNewMessage;
 		ChatService.OnUserStatusChanged += HandleUserStatusChanged;
+		ChatService.OnMessageEdited += HandleMessageEdited;
+		ChatService.OnMessageDeleted += HandleMessageDeleted;
 	}
 
 	private void HandleUserStatusChanged(UserStatus userStatus)
@@ -267,12 +269,34 @@
 			conversation.LastMessage = message;
 			conversation.UnreadMessagesCount++;
 		}
-
-		// Show toast popup with sender info; clicking navigates to the chat
-		var senderName = message.Sender?.UserName ?? "Someone";
-		ToastService.ShowToast(ToastType.Info, senderName, message.Content, $"/chat/{message.SenderId}");
-
+		
 		InvokeAsync(StateHasChanged);
+	}
+
+	private void HandleMessageEdited(Message updated)
+	{
+		var conversation = conversations?.FirstOrDefault(c => c.ConversationId == updated.ConversationId);
+		if (conversation != null && conversation.LastMessage?.MessageId == updated.MessageId)
+		{
+			conversation.LastMessage.Content = updated.Content;
+			conversation.LastMessage.IsEdited = true;
+			InvokeAsync(StateHasChanged);
+		}
+	}
+
+	private void HandleMessageDeleted(Guid deletedId)
+	{
+		if (conversations == null) return;
+		foreach (var conv in conversations)
+		{
+			if (conv.LastMessage?.MessageId == deletedId)
+			{
+				conv.LastMessage.Content = "This message was deleted";
+				conv.LastMessage.IsDeleted = true;
+				InvokeAsync(StateHasChanged);
+				break;
+			}
+		}
 	}
 
 	public void Dispose()
@@ -280,6 +304,8 @@
 		ChatService.OnConversationStarted -= HandleConversation;
 		ChatService.OnMessageReceived -= HandleNewMessage;
 		ChatService.OnUserStatusChanged -= HandleUserStatusChanged;
+		ChatService.OnMessageEdited -= HandleMessageEdited;
+		ChatService.OnMessageDeleted -= HandleMessageDeleted;
 	}
 
 }

@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <Target Name="Tailwind" BeforeTargets="Build">
-    <Exec Command=".\tw.exe -i .\tailwind-input.css -o .\wwwroot\css\app.css --minify" />
+    <Exec Command=".\tw3.exe -i .\tailwind-input.css -o .\wwwroot\css\app.css --minify" />
   </Target>
 
   <ItemGroup>
