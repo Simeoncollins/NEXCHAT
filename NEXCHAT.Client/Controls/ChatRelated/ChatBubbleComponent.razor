@@ -1,0 +1,172 @@
+<!-- chat bubble component -->
+@if (!IsCurrentUser)
+{
+	<div class="flex flex-col items-start rounded-lg transition-all @(IsSelected ? "bg-cyan-400/10 ring-1 ring-cyan-400/30" : "") px-2 py-1">
+		@if (message != null)
+		{
+			<div class="flex items-start space-x-2 relative">
+				@if (friend != null)
+				{
+					<NavLink href="@($"/profile/{friend.UserId}")" class="min-fit">
+						<UserImageComponent Src="@(string.IsNullOrEmpty(friend.PhotoPath) ? friend.UserName.Substring(0, 2).ToUpper() : friend.PhotoPath)" />
+					</NavLink>
+				}
+
+					<div class="chat-bubble chat-bubble-left @(message.IsDeleted ? "opacity-60" : "")">
+						@if (message.IsDeleted)
+						{
+							<p class="italic text-gray-400"><i class="fas fa-ban mr-1"></i>This message was deleted</p>
+						}
+						else
+						{
+							<p>@message.Content</p>
+							<div class="flex items-center justify-end space-x-1 mt-0.5">
+								@if (message.IsEdited)
+								{
+									<span class="text-[10px] text-gray-500">edited</span>
+								}
+								<span class="text-[10px] text-gray-500 opacity-80">
+									@message.DateSentUTC.ToLocalTime().ToString("hh:mm tt")
+								</span>
+							</div>
+						}
+					</div>
+					
+					<!-- Reactions -->
+					@if (message.Reactions?.Any() == true)
+					{
+					<div class="flex items-center gap-1 absolute -bottom-3 left-10 bg-gray-800 rounded-full shadow-md border z-10" style="padding: 3px 6px;">
+						@foreach (var reactionGroup in message.Reactions.Where(r => r.Reaction != null).GroupBy(r => r.ReactionId))
+						{
+							<div class="flex items-center">
+								<span style="font-size:14px; line-height:1;">@GetReactionEmoji(reactionGroup.First().Reaction?.ReactionName)</span>
+								@if (reactionGroup.Count() > 1)
+								{
+									<span class="text-[10px] text-gray-300 ml-0.5 font-bold">@reactionGroup.Count()</span>
+								}
+							</div>
+						}
+					</div>
+					}
+
+
+				@if (!message.IsDeleted)
+				{
+					<button class="text-gray-400 hover:text-white self-center px-1 focus:outline-none"
+							@onclick="OpenMenu" @onclick:stopPropagation="true" title="More">
+						<i class="fas fa-ellipsis-v text-xs"></i>
+					</button>
+				}
+			</div>
+
+
+		}
+	</div>
+}
+else
+{
+	<div class="flex flex-col rounded-lg transition-all @(IsSelected ? "bg-cyan-400/10 ring-1 ring-cyan-400/30" : "") px-2 py-1">
+		@if (message != null)
+		{
+			<div class="flex items-center space-x-2 group relative" style="align-items:flex-end;justify-content: flex-end;">
+
+				@if (!message.IsDeleted)
+				{
+					<button class="text-gray-400 hover:text-white self-center px-1 focus:outline-none"
+							@onclick="OpenMenu" @onclick:stopPropagation="true" title="More">
+						<i class="fas fa-ellipsis-v text-xs"></i>
+					</button>
+				}
+
+					<div class="chat-bubble chat-bubble-right @(message.IsDeleted ? "opacity-60" : "")">
+						@if (message.IsDeleted)
+						{
+							<p class="italic text-gray-400"><i class="fas fa-ban mr-1"></i>This message was deleted</p>
+						}
+						else
+						{
+							<p>@message.Content</p>
+							<div class="flex items-center justify-end space-x-1 mt-0.5">
+								@if (message.IsEdited)
+								{
+									<span class="text-[10px] text-gray-600">edited</span>
+								}
+								<span class="text-[10px] text-gray-600 opacity-80">
+									@message.DateSentUTC.ToLocalTime().ToString("hh:mm tt")
+								</span>
+								@if (!message.IsDeleted)
+								{
+									<div class="message-status inline-block" style="font-size:10px;">
+										@if (isSeen)
+										{
+											<i class="fas fa-check-double text-blue-600"></i>
+										}
+										else if (message.IsDelivered)
+										{
+											<i class="fas fa-check-double text-gray-600"></i>
+										}
+										else
+										{
+											<i class="fas fa-check text-gray-600"></i>
+										}
+									</div>
+								}
+							</div>
+						}
+					</div>
+
+					<!-- Reactions -->
+					@if (message.Reactions?.Any() == true)
+					{
+					<div class="flex items-center gap-1 absolute -bottom-3 right-0 bg-gray-800 rounded-full shadow-md border z-10" style="padding: 3px 6px;">
+						@foreach (var reactionGroup in message.Reactions.Where(r => r.Reaction != null).GroupBy(r => r.ReactionId))
+						{
+							<div class="flex items-center">
+								<span style="font-size:14px; line-height:1;">@GetReactionEmoji(reactionGroup.First().Reaction?.ReactionName)</span>
+								@if (reactionGroup.Count() > 1)
+								{
+									<span class="text-[10px] text-gray-300 ml-0.5 font-bold">@reactionGroup.Count()</span>
+								}
+							</div>
+						}
+					</div>
+					}
+			
+			</div>
+
+
+		}
+	</div>
+}
+
+@code {
+	[Parameter] public bool IsCurrentUser { get; set; } = true;
+	[Parameter] public bool IsSelected { get; set; } = false;
+	[Parameter] public Guid userId { get; set; }
+	[Parameter] public User? friend { get; set; }
+	[Parameter] public Message? message { get; set; }
+	[Parameter] public EventCallback<Message> OnMenuOpen { get; set; }
+
+	private bool isSeen => message?.SeenBy?.Any(s => s.UserId != userId) == true;
+
+	protected override bool ShouldRender() => true;
+
+	private string GetReactionEmoji(string? name) => name?.ToLower() switch
+	{
+		"laughing"    => "😂",
+		"sad"         => "😢",
+		"angel"       => "😇",
+		"kiss"        => "😘",
+		"dissapointed"=> "😑",
+		"unhappy"     => "😠",
+		"suprised"    => "😲",
+		"crying"      => "😭",
+		_             => "❤️"
+	};
+
+	private async Task OpenMenu()
+	{
+		if (message != null)
+			await OnMenuOpen.InvokeAsync(message);
+	}
+}

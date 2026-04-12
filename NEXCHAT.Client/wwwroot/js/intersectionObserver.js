@@ -3,7 +3,6 @@
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    // Invoke the .NET method to load more books
                     dotNetHelper.invokeMethodAsync('LoadMore');
                 }
             });
@@ -14,3 +13,4 @@
         observer.observe(element);
     }
 };
+

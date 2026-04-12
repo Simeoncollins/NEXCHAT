@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Shared.DTOS;
 using NEXCHAT.UseCases.MessageManagement.Interfaces;
+using NEXCHAT.CoreBusiness;
 
 namespace NEXCHAT.Server.Controllers
 {
@@ -42,17 +43,18 @@ namespace NEXCHAT.Server.Controllers
         }
 
         [HttpGet("conversation")]
-        public async Task<IActionResult> GetMessagesInConversation([FromBody] GetConversationDto dto)
+        public async Task<IActionResult> GetMessagesInConversation([FromQuery] Guid conversationId,
+            [FromQuery] int pageIndex, [FromQuery] int pageSize)
         {
-            var messages = await getMessagesInConversationUseCase.ExecuteAsync(dto.conversationId, dto.pageIndex, dto.pageSize);
+            var messages = await getMessagesInConversationUseCase.ExecuteAsync(conversationId, pageIndex, pageSize);
             return Ok(messages);
         }
 
         [HttpPost("send")]
-        public async Task<IActionResult> SendMessage([FromQuery] Guid senderId, [FromQuery] Guid conversationId, [FromBody] string content)
+        public async Task<IActionResult> SendMessage([FromBody] Message message)
         {
-            var messageId = await sendMessageUseCase.ExecuteAsync(senderId, conversationId, content);
-            return Ok(messageId);
+            await sendMessageUseCase.ExecuteAsync(message);
+            return NoContent();
         }
 
         [HttpPut("{messageId}/edit")]

@@ -1,0 +1,24 @@
+@page "/auth/logout/{userId:guid}"
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+@inject HttpClient Http
+
+
+@code {
+    [Parameter]
+    public Guid userId { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        // 1) Logout from server (clears cookie)
+        await Http.PostAsync("api/auth/logout", null);
+
+        // 2) Notify auth provider of anonymous user
+        if (AuthStateProvider is CookieAuthStateProvider cookieProv)
+        {
+            cookieProv.NotifyUserLogout();
+        }
+
+        // 3) Redirect to login
+        Nav.NavigateTo("/auth/login", true);
+    }
+}

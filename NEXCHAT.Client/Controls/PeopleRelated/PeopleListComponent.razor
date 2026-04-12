@@ -1,0 +1,80 @@
+﻿@inject AuthenticationStateProvider AuthStateProvider
+@inject HttpClient Http
+
+<ChatSearchComponent OnQueryEntered="HandleQuery" SearchPlaceholder="search new people..."></ChatSearchComponent>
+@if (isPeopleLoading)
+{
+    <FriendLoadingSkeletonComponent />
+    <FriendLoadingSkeletonComponent />
+    <FriendLoadingSkeletonComponent />
+    <FriendLoadingSkeletonComponent />
+    <FriendLoadingSkeletonComponent />
+    <FriendLoadingSkeletonComponent />
+    <FriendLoadingSkeletonComponent />
+}
+else if (!isPeopleLoading && people != null && people.Count > 0)
+{
+    @foreach (var person in people)
+    {
+        <FriendComponent Friend="person" UserId="UserId" Type="FriendType.Stranger" Requested="person.StrangerRequested" />
+    }
+}
+else
+{
+    <div class="text-center text-gray-500">
+        <p>
+            Nobody id currently available to add
+        </p>
+    </div>
+}
+
+@code {
+    private List<FriendDto>? people = new();
+    private List<FriendDto> allPeople = new();
+    [Parameter]
+    public Guid UserId { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnError { get; set; }
+    private bool isPeopleLoading = true;
+
+    private void HandleQuery(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            people = new List<FriendDto>(allPeople);
+        }
+        else
+        {
+            var lowered = query.Trim().ToLower();
+            people = allPeople
+                .Where(f =>
+                    (!string.IsNullOrWhiteSpace(f.UserName) && f.UserName.ToLower().Contains(lowered)) ||
+                    (!string.IsNullOrWhiteSpace(f.Email) && f.Email.ToLower().Contains(lowered)))
+                .ToList();
+        }
+
+        StateHasChanged();
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            isPeopleLoading = true;
+            var response = await Http.GetFromJsonAsync<List<FriendDto>>($"api/friends/{UserId}/strangers");
+            if (response != null)
+            {
+                allPeople = response;
+                people = new List<FriendDto>(allPeople); // initially display all
+            }
+        }
+        catch
+        {
+            await OnError.InvokeAsync("Error getting people");
+        }
+        finally
+        {
+            isPeopleLoading = false;
+        }
+    }
+}

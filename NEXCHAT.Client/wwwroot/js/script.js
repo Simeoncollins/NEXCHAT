@@ -1,17 +1,35 @@
-﻿//// Toggle user dropdown menu
-//const userMenuButton = document.getElementById('userMenuButton');
-//const userDropdown = document.getElementById('userDropdown');
-//userMenuButton.addEventListener('click', (e) => {
-//    // Prevent event propagation so that document click doesn't immediately hide the dropdown
-//    e.stopPropagation();
-//    userDropdown.classList.toggle('invisible');
-//    userDropdown.classList.toggle('opacity-100');
-//});
 
-//// Close the user dropdown when clicking outside
-//document.addEventListener('click', (e) => {
-//    if (!userMenuButton.contains(e.target) && !userDropdown.contains(e.target)) {
-//        userDropdown.classList.add('invisible');
-//        userDropdown.classList.remove('opacity-100');
-//    }
-//});
+// Scroll to bottom function
+function scrollToBottom(element) {
+    if (!element) {
+        console.warn("scrollToBottom: Element is null");
+        return;
+    }
+    window.scrollTo(0, element.scrollHeight)
+}
+
+// Focus a given element (used when entering edit mode)
+function focusElement(element) {
+    if (element) element.focus();
+}
+
+// Copy text to clipboard (used by message bottom sheet)
+async function copyToClipboard(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+    } catch {
+        // fallback for older browsers
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+    }
+}
+
+// Initialize as global functions
+window.scrollToBottom = scrollToBottom;
+window.focusElement = focusElement;
+window.copyToClipboard = copyToClipboard;
+

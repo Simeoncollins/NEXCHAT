@@ -1,16 +1,125 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@inject AuthenticationStateProvider AuthStateProvider
+@inject HttpClient Http
+@inject NEXCHAT.Client.Services.UserProfileStateService ProfileState
+@implements IDisposable
+
+<ToastContainer />
 <div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+    <header class="fixed top-0 w-full z-50 border-b border-gray-700/50" style="background: var(--deep-space)">
+        <div class="container mx-auto px-4 py-4 flex items-center justify-between">
+            <!-- Logo -->
+            <div class="flex items-center space-x-3">
+                <span class="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
+                    Nexchat
+                </span>
+            </div>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            <div class="relative">
+                <button id="userMenuButton" @onclick="ToggleDropdown" class="flex items-center focus:outline-none">
+                    @if (isLoading)
+                    {
+                        <span class="skeleton-avatar"></span>
+                    }
+                    else if (user != null)
+                    {
+                        <UserImageComponent Src="@src" UserStatus="@status" />
+                    }
+                </button>
+
+                <div class="absolute right-0 top-12 w-48 bg-black border border-gray-700/50 rounded-lg shadow-lg transition-all duration-300 @(isDropdownVisible ? "opacity-100 visible" : "opacity-0 invisible")">
+                    <NavLink class="nav-link" href="/profile" Match="NavLinkMatch.All">
+                        <span class="block px-4 py-2 text-white hover:bg-cyan-400/20">Profile</span>
+                    </NavLink>
+                    <NavLink class="nav-link" href="@($"/auth/logout/{user?.UserId}")">
+                        <span class="block px-4 py-2 text-white hover:bg-cyan-400/20">Logout</span>
+                    </NavLink>
+                </div>
+            </div>
+
+
         </div>
+    </header>
 
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
+    @Body
+
+    <BottomNavComponent />
 </div>
+@code{
+    private User? user;
+    private string src = "";
+    private StatusType status;
+    private bool isLoading = true;
+    private bool isDropdownVisible = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ProfileState.OnProfileUpdated += ProfileUpdatedHandler;
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userIdClaim = auth.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            isLoading = false;
+            return;
+        }
+
+        try
+        {
+            user = await Http.GetFromJsonAsync<User>($"api/users/{userId}/basic");
+            if(user != null)
+            {
+                if(string.IsNullOrEmpty(user.PhotoPath))
+                {
+                    src = user.UserName.Substring(0, 2).ToUpper();
+                }
+                else
+                {
+                    src = user.PhotoPath;
+                }
+                status = user.Status;
+            }
+        }
+        catch
+        {
+            user = null;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+
+    private void ToggleDropdown()
+    {
+        if (!isLoading)
+        {
+            isDropdownVisible = !isDropdownVisible;
+        }
+    }
+
+    private async void ProfileUpdatedHandler()
+    {
+        try
+        {
+            var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+            var userIdClaim = auth.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (Guid.TryParse(userIdClaim, out var userId))
+            {
+                user = await Http.GetFromJsonAsync<User>($"api/users/{userId}/basic");
+                if(user != null)
+                {
+                    src = string.IsNullOrEmpty(user.PhotoPath) ? user.UserName.Substring(0, 2).ToUpper() : user.PhotoPath;
+                }
+            }
+        }
+        catch { }
+        
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        ProfileState.OnProfileUpdated -= ProfileUpdatedHandler;
+    }
+}

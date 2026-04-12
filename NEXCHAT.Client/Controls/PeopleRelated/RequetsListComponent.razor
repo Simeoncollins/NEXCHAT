@@ -1,0 +1,98 @@
+﻿@inject AuthenticationStateProvider AuthStateProvider
+@inject HttpClient Http
+
+<ChatSearchComponent OnQueryEntered="HandleQuery" SearchPlaceholder="search friend requests..."></ChatSearchComponent>
+@if (isRequestsLoading)
+{
+    <FriendLoadingSkeletonComponent />
+    <FriendLoadingSkeletonComponent />
+    <FriendLoadingSkeletonComponent />
+    <FriendLoadingSkeletonComponent />
+    <FriendLoadingSkeletonComponent />
+    <FriendLoadingSkeletonComponent />
+    <FriendLoadingSkeletonComponent />
+}
+else if (!isRequestsLoading && requests != null && requests.Count > 0)
+{
+    @foreach (var request in requests)
+    {
+        <FriendComponent Friend="request" UserId="UserId" Type="FriendType.Request" OnRequestHandled="HandleFriendRequestProcessed"/>
+    }
+}
+else
+{
+    <div class="text-center text-gray-500">
+        <p>
+            You have no requests yet. add new friends and start chatting!
+        </p>
+    </div>
+}
+
+@code {
+    private List<FriendDto>? requests = new();
+    private List<FriendDto> allRequests = new();
+    [Parameter]
+    public Guid UserId { get; set; }
+    [Parameter]
+    public EventCallback<string> OnError { get; set; }
+
+    [Parameter] public EventCallback<int> OnListRetrived { get; set; }
+    [Parameter] public EventCallback OnRequestAccepted { get; set; }
+    private bool isRequestsLoading = true;
+
+    private void HandleQuery(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            requests = new List<FriendDto>(allRequests);
+        }
+        else
+        {
+            var lowered = query.Trim().ToLower();
+            requests = allRequests
+                .Where(f =>
+                    (!string.IsNullOrWhiteSpace(f.UserName) && f.UserName.ToLower().Contains(lowered)) ||
+                    (!string.IsNullOrWhiteSpace(f.Email) && f.Email.ToLower().Contains(lowered)))
+                .ToList();
+        }
+
+        StateHasChanged();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            isRequestsLoading = true;
+            var response = await Http.GetFromJsonAsync<List<FriendDto>>($"api/friends/{UserId}/requests");
+            if (response != null)
+            {
+                allRequests = response;
+                requests = new List<FriendDto>(allRequests); // initially display all
+                await OnListRetrived.InvokeAsync(requests.Count);
+            }
+        }
+        catch
+        {
+            await OnError.InvokeAsync("Error getting friend requests");
+        }
+        finally
+        {
+            isRequestsLoading = false;
+        }
+    }
+
+    
+    private async Task HandleFriendRequestProcessed(RequestEventResult result)
+    {
+        var friendToRemove = requests?.FirstOrDefault(f => f.UserId == result.FriendId);
+        if (friendToRemove != null)
+        {
+            requests?.Remove(friendToRemove);
+        }
+        if(result.IsAccepted)
+        {
+            await OnRequestAccepted.InvokeAsync(null);
+        }
+    }
+}

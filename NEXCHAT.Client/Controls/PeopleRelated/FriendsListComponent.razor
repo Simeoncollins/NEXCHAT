@@ -1,0 +1,103 @@
+﻿@inject AuthenticationStateProvider AuthStateProvider
+@inject HttpClient Http
+
+<ChatSearchComponent OnQueryEntered="HandleQuery" SearchPlaceholder="search friends..."></ChatSearchComponent>
+<div class="flex items-center justify-between mb-3 px-3 py-1" style="color: #ff5353;margin-top: -15px;">
+    <div class="flex items-center space-x-2 text-sm">
+        <i class="fas fa-cancel"></i>
+        <span>Blocked</span>
+    </div>
+    <span>@blockedCount</span>
+</div>
+@if (isFriendsLoading)
+{
+    <FriendLoadingSkeletonComponent />
+    <FriendLoadingSkeletonComponent />
+    <FriendLoadingSkeletonComponent />
+    <FriendLoadingSkeletonComponent />
+    <FriendLoadingSkeletonComponent />
+    <FriendLoadingSkeletonComponent />
+    <FriendLoadingSkeletonComponent />
+}
+else if (!isFriendsLoading && friends != null && friends.Count > 0)
+{
+    @foreach (var friend in friends)
+    {
+        <FriendComponent Friend="friend" UserId="UserId" Type="(friend.FriendBlocked?FriendType.Blocked : FriendType.Friend)" OnFriendUnblocked="HandleUnblock"/>
+    }
+}
+else
+{
+    <div class="text-center text-gray-500">
+        <p>
+            You have no friends yet. add new friends and start chatting!
+        </p>
+    </div>
+}
+
+@code {
+    private List<FriendDto>? friends = new();
+    private List<FriendDto> allFriends = new(); // holds the unfiltered list
+
+    [Parameter]
+    public Guid UserId { get; set; }
+    [Parameter]
+    public EventCallback<string> OnError { get; set; }
+    [Parameter]
+    public EventCallback<int> OnListRetrived { get; set; }
+    private bool isFriendsLoading = true;
+
+    private int blockedCount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetFriendsAsync();
+    }
+
+    private void HandleQuery(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            friends = new List<FriendDto>(allFriends);
+        }
+        else
+        {
+            var lowered = query.Trim().ToLower();
+            friends = allFriends
+                .Where(f =>
+                    (!string.IsNullOrWhiteSpace(f.UserName) && f.UserName.ToLower().Contains(lowered)) ||
+                    (!string.IsNullOrWhiteSpace(f.Email) && f.Email.ToLower().Contains(lowered)))
+                .ToList();
+        }
+
+        StateHasChanged();
+    }
+
+    private void HandleUnblock()
+    {
+        blockedCount -= 1;
+    }
+    public async Task GetFriendsAsync()
+    {
+        try
+        {
+            isFriendsLoading = true;
+            var response = await Http.GetFromJsonAsync<List<FriendDto>>($"api/friends/{UserId}");
+            if (response != null)
+            {
+                allFriends = response;
+                friends = new List<FriendDto>(allFriends); // initially display all
+                blockedCount = allFriends.Where(f => f.FriendBlocked == true).Count();
+                await OnListRetrived.InvokeAsync(friends.Count);
+            }
+        }
+        catch
+        {
+            await OnError.InvokeAsync("Error getting friends");
+        }
+        finally
+        {
+            isFriendsLoading = false;
+        }
+    }
+}

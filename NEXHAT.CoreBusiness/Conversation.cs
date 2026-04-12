@@ -11,6 +11,8 @@ namespace NEXCHAT.CoreBusiness
     {
         public Guid ConversationId { get; set; }
         public Guid CreatorId { get; set; }
+
+        [ForeignKey(nameof(CreatorId))]
         public User? Creator { get; set; }
         public List<ConversationParticipant> ConversationParticipants { get; set; } = new List<ConversationParticipant>();
         public List<Message> Messages { get; set; } = new List<Message>();
@@ -25,6 +27,11 @@ namespace NEXCHAT.CoreBusiness
         public int UnreadMessagesCount { get; set; }
         [NotMapped]
         public Message? LastMessage { get; set; }
+
+        public bool IsParticipant(Guid userId)
+        {
+            return ConversationParticipants.Any(p => p.UserId == userId);
+        }
 
     }
 }

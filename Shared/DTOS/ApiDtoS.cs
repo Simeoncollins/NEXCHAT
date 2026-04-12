@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using NEXCHAT.CoreBusiness;
 using NEXCHAT.CoreBusiness.Enums;
 
 namespace Shared.DTOS
@@ -11,11 +12,19 @@ namespace Shared.DTOS
     public class StartConversationRequestDto
     {
         public Guid CreatorId { get; set; }
+        public Guid ConversationdId { get; set; }
         public List<Guid> Participants { get; set; } = new();
         public bool IsGroup { get; set; }
         public string GroupName { get; set; } = "";
+        public Message Message { get; set; }
     }
 
+    public class SendMessageDto
+    {
+        public Guid SenderId { get; set; }
+        public Guid ConversationId { get; set; }
+        public string Content { get; set; }
+    }
     public class UpdateGroupDetailsRequestDto
     {
         public string GroupName { get; set; } = "";
@@ -35,13 +44,6 @@ namespace Shared.DTOS
         public int pageIndex { get; set; }
         public int pageSize { get; set; }
     }   
-    
-    public class GetConversationDto
-    {
-        public Guid conversationId { get; set; }
-        public int pageIndex { get; set; }
-        public int pageSize { get; set; }
-    }
 
     public class UpdateUserStatusDto
     {

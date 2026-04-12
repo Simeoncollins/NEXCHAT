@@ -1,0 +1,366 @@
+@page "/profile"
+@inject AuthenticationStateProvider AuthStateProvider
+@inject HttpClient Http
+@inject IToastService ToastService
+@inject NavigationManager Nav
+@inject NEXCHAT.Client.Services.UserProfileStateService ProfileState
+@attribute [Authorize]
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Forms
+
+<PageTitle>My Profile</PageTitle>
+
+<main class="flex-grow pt-6 pb-24" data-aos="fade-in" style="margin-top: 80px;">
+    <div class="container mx-auto px-4 max-w-6xl">
+        
+        @if (isLoading)
+        {
+            <div class="flex items-center space-x-6 animate-pulse pt-10">
+                <div class="w-32 h-32 rounded-full bg-gray-700"></div>
+                <div class="flex flex-col space-y-3 flex-1">
+                    <div class="h-6 w-1/3 bg-gray-700 rounded"></div>
+                    <div class="h-4 w-1/4 bg-gray-700 rounded"></div>
+                </div>
+            </div>
+        }
+        else if (user == null)
+        {
+            <div class="pt-20">
+                <p class="text-center text-red-400">Unable to load profile. Please log in again.</p>
+            </div>
+        }
+        else
+        {
+            <div class="flex flex-col lg:flex-row gap-8 items-start">
+                
+                <!-- Left Column: User Header Card -->
+                <div class="w-full lg:w-1/3 bg-gray-800/40 border border-white/5 rounded-3xl p-6 md:p-8 backdrop-blur-md shadow-2xl flex flex-col items-center text-center">
+                    
+                    <!-- Avatar -->
+                    <div class="relative group flex-shrink-0 mb-6">
+                        @if (!string.IsNullOrEmpty(user.PhotoPath) || !string.IsNullOrEmpty(editPhotoPath))
+                        {
+                            var displayPhoto = !string.IsNullOrEmpty(editPhotoPath) ? editPhotoPath : user.PhotoPath;
+                            <img src="@displayPhoto" alt="@user.UserName" class="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-gray-700 shadow-xl transition-transform duration-300 group-hover:scale-105" />
+                        }
+                        else
+                        {
+                            <div class="w-32 h-32 md:w-40 md:h-40 rounded-full bg-gradient-to-br from-cyan-400/80 to-purple-500/80 flex items-center justify-center text-4xl md:text-5xl font-bold text-gray-900 border-4 border-gray-700 shadow-xl">
+                                @(user.UserName.Length >= 2 ? user.UserName[..2].ToUpper() : user.UserName.ToUpper())
+                            </div>
+                        }
+                        <span class="absolute bottom-3 right-3 w-6 h-6 rounded-full border-4 border-gray-800 @(user.Status == NEXCHAT.CoreBusiness.Enums.StatusType.Online ? "bg-green-400" : "bg-gray-500")"></span>
+
+                        <!-- Always Visible Upload Overlay on Hover -->
+                        <label class="absolute inset-0 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity duration-200">
+                            @if(isUploadingImage){
+                                <i class="fas fa-circle-notch fa-spin text-cyan-400 text-3xl mb-1"></i>
+                            } else {
+                                <i class="fas fa-camera text-white text-3xl mb-1"></i>
+                                <span class="text-[10px] text-white font-bold uppercase tracking-wider">Change</span>
+                            }
+                            <InputFile OnChange="HandleFileSelected" accept="image/*" class="hidden" disabled="@isUploadingImage"/>
+                        </label>
+                    </div>
+
+                    <!-- Names & Actions -->
+                    <h2 class="text-3xl font-extrabold text-white tracking-tight mb-1">
+                        @(string.IsNullOrEmpty(user.FirstName) && string.IsNullOrEmpty(user.LastName) ? "Unknown" : $"{user.FirstName} {user.LastName}")
+                    </h2>
+                    <p class="text-lg text-cyan-400 font-medium mb-6">@("@")@user.UserName</p>
+                    
+                    <div class="w-full flex justify-center">
+                        @if (!isEditing)
+                        {
+                            <button @onclick="StartEdit"
+                                    class="w-full py-3 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-cyan-400 font-bold transition-all flex items-center justify-center gap-2">
+                                <i class="fas fa-pencil-alt text-sm"></i> Edit Profile
+                            </button>
+                        }
+                        else
+                        {
+                            <div class="w-full flex flex-col gap-3">
+                                <button @onclick="SaveProfile" disabled="@isSaving"
+                                        class="w-full py-3 rounded-full bg-cyan-500 hover:bg-cyan-400 text-gray-900 font-bold transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)] flex items-center justify-center gap-2">
+                                    @if (isSaving)
+                                    {
+                                        <i class="fas fa-circle-notch fa-spin text-sm"></i> <span>Saving...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-check text-sm"></i> <span>Save Changes</span>
+                                    }
+                                </button>
+                                <button @onclick="CancelEdit"
+                                        class="w-full py-3 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 font-bold transition-all">
+                                    Cancel
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div> <!-- End Left Column -->
+
+                <!-- Right Column: Profile Info / Edit Form -->
+                <div class="w-full lg:w-2/3">
+                    @if (!isEditing)
+                    {
+                        <div class="bg-gray-800/30 border border-white/5 rounded-3xl p-6 md:p-8 backdrop-blur-md h-full">
+                            <h3 class="text-xl font-bold text-white mb-8 pl-3 border-l-4 border-cyan-400">Profile Details</h3>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-10">
+                                
+                                <!-- Email -->
+                                <div class="flex items-start gap-4">
+                                    <div class="mt-1 w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-cyan-400 flex-shrink-0">
+                                        <i class="fas fa-envelope text-lg"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">Email</p>
+                                        <p class="text-base text-gray-200 break-all">@(string.IsNullOrEmpty(user.Email) ? "Unknown" : user.Email)</p>
+                                    </div>
+                                </div>
+
+                                <!-- Phone -->
+                                <div class="flex items-start gap-4">
+                                    <div class="mt-1 w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-cyan-400 flex-shrink-0">
+                                        <i class="fas fa-phone text-lg"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">Phone</p>
+                                        <p class="text-base text-gray-200">@(string.IsNullOrEmpty(user.Phone) ? "Unknown" : user.Phone)</p>
+                                    </div>
+                                </div>
+
+                                <!-- Country -->
+                                <div class="flex items-start gap-4">
+                                    <div class="mt-1 w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-cyan-400 flex-shrink-0">
+                                        <i class="fas fa-globe text-lg"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">Country</p>
+                                        <p class="text-base text-gray-200">@(string.IsNullOrEmpty(user.Country) ? "Unknown" : user.Country)</p>
+                                    </div>
+                                </div>
+
+                                <!-- Date Joined -->
+                                <div class="flex items-start gap-4">
+                                    <div class="mt-1 w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-cyan-400 flex-shrink-0">
+                                        <i class="fas fa-calendar-alt text-lg"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">Date Joined</p>
+                                        <p class="text-base text-gray-200">@user.DateJoined.ToLocalTime().ToString("MMM dd, yyyy")</p>
+                                    </div>
+                                </div>
+
+                                <!-- Bio -->
+                                <div class="flex items-start gap-4 md:col-span-2">
+                                    <div class="mt-1 w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-cyan-400 flex-shrink-0">
+                                        <i class="fas fa-quote-left text-lg"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">Bio</p>
+                                        <p class="text-base text-gray-200 leading-relaxed whitespace-pre-wrap">@(string.IsNullOrEmpty(user.Bio) ? "Unknown" : user.Bio)</p>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- Edit Mode Form container -->
+                        <div class="bg-gray-800/30 border border-white/5 rounded-3xl p-6 md:p-8 backdrop-blur-md shadow-2xl h-full">
+                            <h3 class="text-xl font-bold text-white mb-8 pl-3 border-l-4 border-cyan-400">Edit Details</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                
+                                <!-- First Name -->
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-2 font-bold uppercase tracking-widest pl-1">First Name</label>
+                                    <input @bind="editFirstName" placeholder="First name" class="w-full px-5 py-4 rounded-2xl bg-gray-900/50 border border-white/5 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all text-sm" />
+                                </div>
+
+                                <!-- Last Name -->
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-2 font-bold uppercase tracking-widest pl-1">Last Name</label>
+                                    <input @bind="editLastName" placeholder="Last name" class="w-full px-5 py-4 rounded-2xl bg-gray-900/50 border border-white/5 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all text-sm" />
+                                </div>
+
+                                <!-- Phone -->
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-2 font-bold uppercase tracking-widest pl-1">Phone</label>
+                                    <input @bind="editPhone" placeholder="Phone number" class="w-full px-5 py-4 rounded-2xl bg-gray-900/50 border border-white/5 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all text-sm" />
+                                </div>
+
+                                <!-- Country -->
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-2 font-bold uppercase tracking-widest pl-1">Country</label>
+                                    <input @bind="editCountry" placeholder="Country" class="w-full px-5 py-4 rounded-2xl bg-gray-900/50 border border-white/5 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all text-sm" />
+                                </div>
+
+                                <!-- Bio -->
+                                <div class="md:col-span-2">
+                                    <label class="block text-xs text-gray-400 mb-2 font-bold uppercase tracking-widest pl-1">Bio</label>
+                                    <textarea @bind="editBio" placeholder="Tell people about yourself..." class="w-full px-5 py-4 rounded-2xl bg-gray-900/50 border border-white/5 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all resize-none h-32 text-sm leading-relaxed"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div> <!-- End Right Column -->
+            </div>
+        }
+    </div>
+</main>
+
+@code {
+    private NEXCHAT.CoreBusiness.User? user;
+    private bool isLoading = true;
+    private bool isEditing = false;
+    private bool isSaving = false;
+    private bool isUploadingImage = false;
+
+    // Edit form fields
+    private string editFirstName = "";
+    private string editLastName  = "";
+    private string editBio       = "";
+    private string editCountry   = "";
+    private string editPhone     = "";
+    private string editPhotoPath = "";
+
+    private long maxFileSize = 3 * 1024 * 1024; // 3 MB max size
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            user = await Http.GetFromJsonAsync<NEXCHAT.CoreBusiness.User>("api/users/me");
+            if (user != null)
+            {
+                if(user.Bio == null) user.Bio = "";
+                if(user.FirstName == null) user.FirstName = "";
+                if(user.LastName == null) user.LastName = "";
+                if(user.Phone == null) user.Phone = "";
+                if(user.Country == null) user.Country = "";
+            }
+        }
+        catch { user = null; }
+        finally { isLoading = false; }
+    }
+
+    private void StartEdit()
+    {
+        if (user == null) return;
+        editFirstName = user.FirstName;
+        editLastName  = user.LastName;
+        editBio       = user.Bio;
+        editCountry   = user.Country;
+        editPhone     = user.Phone;
+        editPhotoPath = user.PhotoPath ?? "";
+        isEditing     = true;
+    }
+
+    private void CancelEdit() 
+    {
+        editPhotoPath = "";
+        isEditing = false;
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file == null) return;
+
+        if (file.Size > maxFileSize)
+        {
+            ToastService.ShowToast(ToastType.Warning, "File too large", "Profile picture must be under 3 MB.");
+            return;
+        }
+
+        isUploadingImage = true;
+        StateHasChanged();
+
+        try
+        {
+            var format = file.ContentType;
+            var resizedImage = await file.RequestImageFileAsync(format, 400, 400);
+            var buffer = new byte[resizedImage.Size];
+            await resizedImage.OpenReadStream(maxFileSize).ReadAsync(buffer);
+            var base64 = Convert.ToBase64String(buffer);
+            var newImageBase64 = $"data:{format};base64,{base64}";
+            
+            // Instantly save to server
+            if(user != null){
+                var dto = new { 
+                    FirstName = user.FirstName, 
+                    LastName = user.LastName, 
+                    Bio = user.Bio, 
+                    Country = user.Country, 
+                    Phone = user.Phone,
+                    PhotoPath = newImageBase64
+                };
+                
+                var resp = await Http.PutAsJsonAsync("api/users/me", dto);
+                if (resp.IsSuccessStatusCode)
+                {
+                    user.PhotoPath = newImageBase64;
+                    if(isEditing) editPhotoPath = newImageBase64; // Keep sync if currently editing
+                    ToastService.ShowToast(ToastType.Success, "Success", "Profile picture updated.");
+                    ProfileState.NotifyProfileUpdated();
+                }
+                else
+                {
+                    ToastService.ShowToast(ToastType.Danger, "Error", "Failed to upload image.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowToast(ToastType.Danger, "Error", "Error processing image.");
+        }
+        finally
+        {
+            isUploadingImage = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveProfile()
+    {
+        if (user == null) return;
+        isSaving = true;
+        try
+        {
+            var dto = new { 
+                FirstName = editFirstName, 
+                LastName = editLastName, 
+                Bio = editBio, 
+                Country = editCountry, 
+                Phone = editPhone,
+                PhotoPath = editPhotoPath
+            };
+            var resp = await Http.PutAsJsonAsync("api/users/me", dto);
+            if (resp.IsSuccessStatusCode)
+            {
+                user = await resp.Content.ReadFromJsonAsync<NEXCHAT.CoreBusiness.User>();
+                if(user.Bio == null) user.Bio = "";
+                if(user.FirstName == null) user.FirstName = "";
+                if(user.LastName == null) user.LastName = "";
+                if(user.Phone == null) user.Phone = "";
+                if(user.Country == null) user.Country = "";
+                
+                isEditing = false;
+                ToastService.ShowToast(ToastType.Success, "Saved!", "Profile details updated.");
+                ProfileState.NotifyProfileUpdated();
+            }
+            else
+            {
+                ToastService.ShowToast(ToastType.Danger, "Error!", "Could not save profile.");
+            }
+        }
+        catch
+        {
+            ToastService.ShowToast(ToastType.Danger, "Error!", "Network error.");
+        }
+        finally { isSaving = false; }
+    }
+}

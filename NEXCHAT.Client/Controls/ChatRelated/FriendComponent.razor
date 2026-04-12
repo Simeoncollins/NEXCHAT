@@ -1,0 +1,160 @@
+﻿@inject HttpClient Http
+@inject IToastService ToastService
+@if(Friend != null)
+{
+    <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center space-x-3">
+
+            <NavLink href="@($"/profile/{Friend.UserId}")" class="z-10">
+                <UserImageComponent 
+                Src="@(string.IsNullOrEmpty(Friend.PhotoPath) ? Friend.UserName.Substring(0, 2).ToUpper() : Friend.PhotoPath)"
+                UserStatus="Friend.Status" />
+            </NavLink>
+            <div>
+                <NavLink href="@($"/profile/{Friend.UserId}")" class="z-10">
+                    @Friend.UserName
+                </NavLink>
+                <p class="text-gray-400 text-sm">@Friend.Email</p>
+            </div>
+        </div>
+        @if (Type == FriendType.Friend)
+        {
+            <NavLink href="@($"/chat/{Friend.UserId}")" class="px-4 py-1 rounded-full border border-cyan-400 text-cyan-400 hover:bg-cyan-400 hover:text-black transition">
+                Message
+            </NavLink>
+        }
+        else if(Type == FriendType.Request)
+        {
+            <div class="flex flex-col space-y-3">
+                <button class="rounded-full bg-cyan-400/90 hover:bg-cyan-400 text-black transition requestBtn" @onclick="AcceptRequest">
+                    Accept
+                </button>
+                <button class="rounded-full border border-cyan-400 text-cyan-400 hover:bg-cyan-400 hover:text-black transition requestBtn" @onclick="RejectRequest">
+                    Reject
+                </button>
+            </div>
+        }
+        else if(Type == FriendType.Blocked)
+        {
+            <button class="px-4 py-1 rounded-full text-white" style="background: #ff3535" @onclick="Unblock">
+                Unblock
+            </button>
+        }
+        else if(Type == FriendType.Stranger)
+        {
+            if (Requested)
+            {
+                <button class="px-4 py-1 rounded-full bg-cyan-400/90 hover:bg-cyan-400 text-black transition">
+                    Request Sent
+                </button>
+            }
+            else
+            {
+                <button @onclick="SendRequest" class="px-4 py-1 rounded-full border border-cyan-400 text-cyan-400 hover:bg-cyan-400 hover:text-black transition">
+                    Send Request
+                </button>
+            }
+        }
+
+    </div>
+}
+@code {
+    [Parameter]
+    public FriendDto? Friend { get; set; }
+
+    [Parameter]
+    public Guid UserId { get; set; }
+
+    [Parameter]
+    public FriendType Type { get; set; } = FriendType.Friend;
+
+    [Parameter]
+    public bool Requested { get; set; } = false;
+
+    [Parameter] public EventCallback<RequestEventResult> OnRequestHandled { get; set; }
+    [Parameter] public EventCallback OnFriendUnblocked { get; set; }
+    private async Task SendRequest()
+    {
+        if (Friend != null)
+        {
+            var response = await Http.PostAsync(
+                $"api/friends/{UserId}/send?recieverId={Friend.UserId}",
+                null
+            );
+
+            if (response.IsSuccessStatusCode)
+            {
+                ToastService.ShowToast(ToastType.Success, "Request Sent!", $"Friend request sent to {Friend.UserName}.");
+                Requested = true;
+            }
+            else
+            {
+                ToastService.ShowToast(ToastType.Danger, "Error!", $"Failed: {response.StatusCode}");
+            }
+        }
+    }    
+    private async Task AcceptRequest()
+    {
+        if (Friend != null)
+        {
+            var response = await Http.PostAsync(
+                $"api/friends/{Friend.UserId}/accept?recieverId={UserId}",
+                null
+            );
+
+            if (response.IsSuccessStatusCode)
+            {
+                ToastService.ShowToast(ToastType.Success, "Request Accepted!", $"Friend request from {Friend.UserName} accepted.");
+                await OnRequestHandled.InvokeAsync(new RequestEventResult(Friend.UserId, true));
+            }
+            else
+            {
+                ToastService.ShowToast(ToastType.Danger, "Error!", $"Failed: {response.StatusCode}");
+            }
+        }
+
+    }
+    private async Task RejectRequest()
+    {
+        if (Friend != null)
+        {
+            var response = await Http.PostAsync(
+                $"api/friends/{Friend.UserId}/reject?recieverId={UserId}",
+                null
+            );
+
+            if (response.IsSuccessStatusCode)
+            {
+                ToastService.ShowToast(ToastType.Success, "Request Rejected!", $"Friend request from {Friend.UserName} rejected.");
+                await OnRequestHandled.InvokeAsync(new RequestEventResult(Friend.UserId, false));
+            }
+            else
+            {
+                ToastService.ShowToast(ToastType.Danger, "Error!", $"Failed: {response.StatusCode}");
+            }
+        }
+
+    }
+    private async Task Unblock()
+    {
+        if (Friend != null)
+        {
+            var response = await Http.PostAsync(
+                $"api/friends/{Friend.UserId}/unblock?recieverId={UserId}",
+                null
+            );
+
+            if (response.IsSuccessStatusCode)
+            {
+                ToastService.ShowToast(ToastType.Success, "Friend Unblocked!", $"{Friend.UserName} has been unblocked.");
+                Friend.FriendBlocked = false;
+                await OnFriendUnblocked.InvokeAsync();
+            }
+            else
+            {
+                ToastService.ShowToast(ToastType.Danger, "Error!", $"Failed: {response.StatusCode}");
+            }
+        }
+
+    }
+}

@@ -1,0 +1,82 @@
+﻿@using System.Threading
+@using System.Threading.Tasks
+
+<div class="@ToastCssClass" style="@(Show ? "" : "display:none;")" @onclick="OnToastClick">
+    <div class="toast-content relative">
+        <h3 class="toast-heading">@ToastData.Heading</h3>
+        <p class="toast-message">@ToastData.Message</p>
+        <button class="toast-close" @onclick="CloseToast" @onclick:stopPropagation="true">&times;</button>
+    </div>
+    <div class="toast-progress" style="@ProgressStyle"></div>
+</div>
+
+@code {
+    [Parameter] public ToastModel ToastData { get; set; } = null!;
+    [Parameter] public EventCallback<Guid> OnRemove { get; set; }
+    [Parameter] public EventCallback<ToastModel> OnClick { get; set; }
+
+    private bool Show { get; set; } = false;
+    private bool expanded = false;
+    private bool exiting = false;
+    private string ProgressStyle = "";
+    private Timer? _dismissTimer;
+
+    private string ToastCssClass =>
+        $"toast {GetToastTypeClass()} {(expanded ? "expanded" : "")} {(exiting ? "exiting" : "")}";
+
+    protected override void OnInitialized()
+    {
+        Show = true;
+        StartTimer();
+    }
+
+    private void StartTimer()
+    {
+        _ = Task.Delay(800).ContinueWith(_ =>
+        {
+            InvokeAsync(() =>
+            {
+                expanded = true;
+                StateHasChanged();
+            });
+        });
+
+        _dismissTimer?.Dispose();
+        _dismissTimer = new Timer(_ => DismissToast(), null, ToastData.Timeout, Timeout.Infinite);
+        ProgressStyle = $"animation: progressBar {ToastData.Timeout}ms linear forwards;";
+    }
+
+    private async void OnToastClick()
+    {
+        await OnClick.InvokeAsync(ToastData);
+    }
+
+    private async void DismissToast()
+    {
+        expanded = false;
+        await InvokeAsync(StateHasChanged);
+
+        await Task.Delay(200);
+        exiting = true;
+        await InvokeAsync(StateHasChanged);
+
+        await Task.Delay(1000);
+        Show = false;
+        await OnRemove.InvokeAsync(ToastData.Id);
+    }
+
+    private void CloseToast()
+    {
+        _dismissTimer?.Dispose();
+        DismissToast();
+    }
+
+    private string GetToastTypeClass() => ToastData.Type switch
+    {
+        ToastType.Success => "toast-success",
+        ToastType.Danger => "toast-danger",
+        ToastType.Info => "toast-info",
+        ToastType.Warning => "toast-warning",
+        _ => "toast-success"
+    };
+}

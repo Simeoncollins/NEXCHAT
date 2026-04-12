@@ -1,0 +1,41 @@
+﻿@using System.Collections.Generic
+@inject NavigationManager Navigation
+
+@foreach (var toast in activeToasts)
+{
+    <Toast @key="toast.Id" ToastData="toast" OnRemove="RemoveToast" OnClick="HandleToastClick" />
+}
+
+@code {
+    private List<ToastModel> activeToasts = new();
+    
+    [Inject] 
+    private IToastService ToastService { get; set; } = null!;
+
+    protected override void OnInitialized()
+    {
+        ToastService.OnShow += AddToast;
+    }
+
+    private void AddToast(ToastModel toast)
+    {
+        activeToasts.Add(toast);
+        StateHasChanged();
+    }
+
+    private void RemoveToast(Guid toastId)
+    {
+        activeToasts.RemoveAll(t => t.Id == toastId);
+        StateHasChanged();
+    }
+
+    private void HandleToastClick(ToastModel toast)
+    {
+        if (!string.IsNullOrEmpty(toast.Url))
+        {
+            Navigation.NavigateTo(toast.Url);
+        }
+    }
+
+    public void Dispose() => ToastService.OnShow -= AddToast;
+}

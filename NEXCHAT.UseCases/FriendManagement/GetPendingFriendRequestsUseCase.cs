@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NEXCHAT.CoreBusiness;
+using NEXCHAT.CoreBusiness.Classes;
 using NEXCHAT.UseCases.FriendManagement.Interfaces;
 using NEXCHAT.UseCases.PluginInterfaces;
 
@@ -18,7 +19,7 @@ namespace NEXCHAT.UseCases.FriendManagement
             this.iUserRepository = iUserRepository;
         }
 
-        public async Task<IEnumerable<User>> ExecuteAsync(Guid userId)
+        public async Task<IEnumerable<FriendDto>> ExecuteAsync(Guid userId)
         {
             return await iUserRepository.GetPendingFriendRequestsAsync(userId);
         }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -28,5 +29,80 @@ namespace NEXCHAT.CoreBusiness
         public List<Notification> Notifications { get; set; } = new List<Notification>();
         public List<UserFriend> SentFriendRequests { get; set; } = new List<UserFriend>();
         public List<UserFriend> ReceivedFriendRequests { get; set; } = new List<UserFriend>();
+
+        [NotMapped]
+        public bool StrangerRequested { get; set; } = false;
+        public bool isStranger(Guid userId)
+        {
+            var sentRequest = SentFriendRequests.FirstOrDefault(fr =>
+                fr.ReceiverId == userId 
+            );
+
+            if (sentRequest != null)
+            {
+                if (sentRequest.Status == FriendRequestStatus.Pending)
+                {
+                    StrangerRequested = true; 
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+
+            }
+
+            var receivedRequest = ReceivedFriendRequests.FirstOrDefault(fr =>
+                fr.RequesterId == userId
+            );
+
+            if (receivedRequest != null)
+            {
+                return false;               
+            }
+
+            StrangerRequested = false;      
+            return true;                    
+        }
+
+        public bool isFriend(Guid userId)
+        {
+            var friendFromSentReguest = SentFriendRequests.FirstOrDefault(fr =>
+                fr.ReceiverId == userId && fr.Status == FriendRequestStatus.Accepted
+            );
+            if( friendFromSentReguest != null )
+            {
+                return true;
+            }
+
+            var friendFromAcceptedRequest = ReceivedFriendRequests.FirstOrDefault(fr =>
+                fr.RequesterId == userId && fr.Status == FriendRequestStatus.Accepted
+            );
+            if (friendFromAcceptedRequest != null)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public bool isFriendBlocked(Guid userId)
+        {
+            var blockedFriendFromSentReguest = SentFriendRequests.FirstOrDefault(fr =>
+                fr.ReceiverId == userId && fr.Status == FriendRequestStatus.Blocked
+            );
+            if (blockedFriendFromSentReguest != null)
+            {
+                return true;
+            }
+
+            var friendFromAcceptedRequest = ReceivedFriendRequests.FirstOrDefault(fr =>
+                fr.RequesterId == userId && fr.Status == FriendRequestStatus.Blocked
+            );
+            if (friendFromAcceptedRequest != null)
+            {
+                return true;
+            }
+            return false;
+        }
     }
 }

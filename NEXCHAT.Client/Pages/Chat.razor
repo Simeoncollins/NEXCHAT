@@ -1,0 +1,764 @@
+@page "/chat/{friendId:guid}"
+@layout Layout.AuthLayout
+@inject AuthenticationStateProvider AuthStateProvider
+@inject HttpClient Http
+@attribute [Authorize]
+@inject IJSRuntime JSRuntime
+@inject ChatSignalRService ChatService
+@inject IToastService ToastService
+@implements IDisposable
+
+<PageTitle>Chat-@friendName</PageTitle>
+<div class="flex items-center space-x-4 py-4 px-8 border-b border-white/10 fixed w-full top-0 backdrop-blur-lg chatHeader" style="z-index:99">
+	<!-- Back Button -->
+	<button class="text-white hover:text-cyan-400 transition-colors text-2xl focus:outline-none"
+			onclick="window.history.back()">
+		<i class="fas fa-arrow-left"></i>
+	</button>
+	@if (isFriendLoading)
+	{
+		<FriendConversationImageLoading />
+	}
+	else if (!isFriendLoading && friend != null)
+	{
+		<NavLink href="@($"/profile/{friend.UserId}")" class="min-fit">
+			<UserImageComponent Src="@(string.IsNullOrEmpty(friend.PhotoPath) ? friend.UserName.Substring(0, 2).ToUpper() : friend.PhotoPath)"
+			UserStatus="friend.Status" />
+		</NavLink>
+
+		<div>
+			<NavLink href="@($"/profile/{friend.UserId}")" class="font-bold text-xl hover:underline">
+				@friend.UserName
+			</NavLink>
+			<p class="text-gray-400 text-sm">@friend.Email</p>
+		</div>
+	}
+</div>
+
+<main class="flex-grow pb-4" style="margin-top: 82px;">
+	<div class="container mx-auto px-4 py-2">
+		@if (isConvLoading)
+		{
+			<ConversationLoadingComponent />
+		}
+		@if (!isConvLoading && user != null && friend != null)
+		{
+
+			if (conversation == null)
+			{
+				<div class="chat-date">
+					@DateTime.Now.ToString("MMM dd yyyy")
+				</div>
+			}
+
+			<!-- Chat Messages Container -->
+			<div class="space-y-4 mb-16" @ref="messagesContainer">
+				@if (messages?.Count > 0)
+				{
+					<Virtualize Items="messages" Context="msg" @ref="virtualizeContainer">
+						@{
+							// Calculate if this message needs a date header
+							var currentIndex = messages.IndexOf(msg);
+							var isNewDay = currentIndex == 0 ||
+					msg.DateSentUTC.Date != messages[currentIndex - 1].DateSentUTC.Date;
+						}
+
+						@if (isNewDay)
+						{
+							<div class="chat-date text-center my-4">
+								@msg.DateSentUTC.ToLocalTime().ToString("MMM dd yyyy")
+							</div>
+						}
+
+						<ChatBubbleComponent 
+						@key="@(msg.MessageId.ToString() + "-" + (msg.Reactions?.Count ?? 0))"
+						message="msg"
+						IsCurrentUser="msg.SenderId == user.UserId"
+						IsSelected="selectedMessage?.MessageId == msg.MessageId"
+						friend="friend"
+						userId="user.UserId"
+						OnMenuOpen="OpenMessageMenu" />
+					</Virtualize>
+					if(conversation?.ParticipantsTyping?.Any() == true)
+					{
+						<TypingIndicatorComponent UserId="user.UserId" TypingUsers="conversation.ParticipantsTyping" />
+					}
+				}
+				else
+				{
+					<div class="text-center py-10 text-gray-500">
+						No messages yet. Start the conversation!
+					</div>
+				}
+
+			</div>
+		}
+	</div>
+</main>
+
+<!-- ═══════════════════════════ BOTTOM SHEET ═══════════════════════════ -->
+@if (selectedMessage != null)
+{
+	<!-- Backdrop: clicking outside dismisses the sheet -->
+	<div class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+		 @onclick="CloseBottomSheet"></div>
+
+	<!-- Sheet panel -->
+	<div class="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 border-t border-white/10 rounded-t-2xl shadow-2xl
+				animate-slide-up" @onclick:stopPropagation="true">
+
+		<!-- Handle bar -->
+		<div class="flex justify-center pt-3 pb-1">
+			<div class="w-10 h-1 bg-white/20 rounded-full"></div>
+		</div>
+
+		<!-- Message preview -->
+		<div class="px-6 py-3 border-b border-white/10">
+			<p class="text-xs text-gray-400 mb-1">@(selectedMessage.SenderId == user?.UserId ? "Your message" : friend?.UserName ?? "Message")</p>
+			<div class="text-sm text-white overflow-hidden" style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">
+				@selectedMessage.Content
+			</div>
+		</div>
+
+		<!-- Reactions Row -->
+		@if (availableReactions.Any() && selectedMessage.SenderId != user?.UserId)
+		{
+			<div class="px-6 py-4 border-b border-white/10 grid grid-cols-4 gap-4 justify-items-center">
+				@foreach (var reaction in availableReactions)
+				{
+					bool isSelected = selectedMessage.Reactions?.Any(r => r.ReactionId == reaction.ReactionId && r.UserReactedId == user?.UserId) == true;
+					<button class="w-12 h-12 rounded-full flex items-center justify-center transition-colors @(isSelected ? "bg-cyan-500/30 border border-cyan-400" : "bg-gray-800 hover:bg-gray-700")"
+							@onclick="() => ToggleReaction(reaction)">
+						<dotlottie-player src="@reaction.EmojiPath" 
+										  background="transparent" 
+										  speed="1" 
+										  style="width: 32px; height: 32px;" 
+										  loop autoplay></dotlottie-player>
+					</button>
+				}
+			</div>
+		}
+
+		<!-- Action buttons -->
+		<div class="flex flex-col py-2">
+
+			<!-- Copy — always available -->
+			<button class="flex items-center px-6 py-4 text-white hover:bg-white/5 transition-colors"
+					@onclick="CopySelectedMessage">
+				<div class="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center mr-4">
+					<i class="fas fa-copy text-gray-300"></i>
+				</div>
+				<span class="font-medium">Copy</span>
+			</button>
+
+			@if (selectedMessage.SenderId == user?.UserId)
+			{
+				<!-- Edit —  own messages only -->
+				<button class="flex items-center px-6 py-4 text-white hover:bg-white/5 transition-colors"
+						@onclick="EditSelectedMessage">
+					<div class="w-9 h-9 rounded-full bg-cyan-400/20 flex items-center justify-center mr-4">
+						<i class="fas fa-pencil-alt text-cyan-400"></i>
+					</div>
+					<span class="font-medium">Edit</span>
+				</button>
+
+				<!-- Delete — own messages only -->
+				<button class="flex items-center px-6 py-4 text-red-400 hover:bg-white/5 transition-colors"
+						@onclick="DeleteSelectedMessage">
+					<div class="w-9 h-9 rounded-full bg-red-500/20 flex items-center justify-center mr-4">
+						<i class="fas fa-trash text-red-400"></i>
+					</div>
+					<span class="font-medium">Delete</span>
+				</button>
+			}
+		</div>
+
+		<!-- Safe area spacer -->
+		<div style="height: env(safe-area-inset-bottom, 12px)"></div>
+	</div>
+}
+
+<div class="fixed bottom-0 w-full bg-black/80 backdrop-blur-lg border-t border-white/10">
+	<div class="container mx-auto px-4 py-3">
+		@if (editingMessage != null)
+		{
+			<!-- Edit preview bar -->
+			<div class="flex items-center justify-between bg-cyan-400/10 border border-cyan-400/30 rounded-lg px-4 py-2 mb-2">
+				<div class="flex items-center space-x-2">
+					<i class="fas fa-pencil-alt text-cyan-400 text-xs"></i>
+					<div>
+						<p class="text-xs text-cyan-400 font-semibold">Editing message</p>
+						<p class="text-xs text-gray-400 truncate max-w-xs">@editingMessage.Content</p>
+					</div>
+				</div>
+				<button class="text-gray-400 hover:text-white" @onclick="CancelEdit">
+					<i class="fas fa-times"></i>
+				</button>
+			</div>
+		}
+		<div class="flex items-end space-x-2">
+			<textarea @ref="messageInputRef" value="@message" @oninput="@((e) => OnInputChanged(e))"
+			placeholder="@(editingMessage != null ? "Edit your message..." : "Send a message...")"
+			class="messageTxt flex-grow bg-black/30 border @(editingMessage != null ? "border-cyan-400/60" : "border-cyan-400/20") rounded-lg px-4 py-2 text-white focus:border-cyan-400 focus:outline-none"></textarea>
+
+			<button class="text-white hover:text-cyan-400 transition-colors" @onclick="sendMessage">
+				<i class="fas @(editingMessage != null ? "fa-check" : "fa-paper-plane") text-xl"></i>
+			</button>
+		</div>
+	</div>
+</div>
+
+
+@code {
+	[Parameter]
+	public Guid friendId { get; set; }
+
+	private User? user;
+	private User? friend;
+	private Conversation? conversation;
+	private List<Message>? messages = new();
+	public string friendName = "friend";
+	private bool isFriendLoading = true;
+	private bool isConvLoading = true;
+	private bool isUserBlocked = false;
+
+
+	private int pageIndex = 1;
+	private int pageSize = 30;
+
+	private Virtualize<Message> virtualizeContainer;
+	private string message = "";
+	Guid conversationId = Guid.Empty;
+
+	private ElementReference messagesContainer;
+	private bool shouldScrollToBottom = true;
+
+	private bool messagesMarked = false;
+
+	private Message? editingMessage = null;
+	private Message? selectedMessage = null;   // drives the bottom sheet
+	private List<Reaction> availableReactions = new();
+
+	private readonly object typingLock = new object();
+	private Timer? _typingCleanupTimer;
+	private ElementReference messageInputRef;
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (shouldScrollToBottom)
+		{
+			await ScrollToBottom();
+			shouldScrollToBottom = false;
+		}
+	}
+
+	private async Task OnInputChanged(ChangeEventArgs e)
+	{
+		message = e.Value?.ToString() ?? "";
+
+		if (conversation == null) return;
+
+		if (message.Length > 0)
+		{
+			await Http.PostAsync($"api/conversations/{conversationId}/typing-indicator?userId={user.UserId}&isTyping=true", null);
+		}
+		else if (message.Length == 0)
+		{
+			await Http.PostAsync($"api/conversations/{conversationId}/typing-indicator?userId={user.UserId}&isTyping=false", null);
+		}
+	}
+	private async Task sendMessage()
+	{
+		if (!string.IsNullOrEmpty(message))
+		{
+			if (user == null || friend == null) return;
+
+			// ── EDIT MODE ──────────────────────────────────────────────
+			if (editingMessage != null)
+			{
+				var newContent = message;
+				editingMessage.Content = newContent;
+				editingMessage.IsEdited = true;
+				var targetId = editingMessage.MessageId;
+				CancelEdit();
+				try
+				{
+					await Http.PutAsync($"api/messages/{targetId}/edit",
+						JsonContent.Create(newContent));
+				}
+				catch { }
+				return;
+			}
+
+			// ── SEND NEW MESSAGE ───────────────────────────────────────
+			bool isDelivered = friend.Status == StatusType.Online;
+			Guid messageId = Guid.NewGuid();
+			DateTime date = DateTime.UtcNow;
+			
+			Message newMessage = new Message
+				{
+					MessageId = messageId,
+					Content = message,
+					ConversationId = conversationId,
+					SenderId = user.UserId,
+					DateSentUTC = date,
+					IsDelivered = isDelivered
+				};
+
+			messages.Add(newMessage);
+			message = "";
+			shouldScrollToBottom = true;
+			StateHasChanged();
+			try
+			{
+				if (conversation == null)
+				{
+
+					StartConversationRequestDto convDto = new()
+						{
+							CreatorId = user.UserId,
+							ConversationdId = conversationId,
+							Participants = new List<Guid> { user.UserId, friend.UserId },
+							IsGroup = false,
+							GroupName = string.Empty,
+							Message = newMessage
+						};
+
+					var content = JsonContent.Create(convDto);
+					var response = await Http.PostAsync("api/conversations/start", content);
+
+					if (response.IsSuccessStatusCode)
+					{
+						conversationId = await response.Content.ReadFromJsonAsync<Guid>();
+					}
+					else
+					{
+						var error = await response.Content.ReadAsStringAsync();
+						Console.WriteLine($"Error: {response.StatusCode}, {error}");
+					}
+
+				}
+				else{
+					var dto = JsonContent.Create(newMessage);
+					await Http.PostAsync("api/messages/send", dto);
+				}
+			}
+
+
+			catch
+			{
+				// Handle error
+				messages.Remove(newMessage);
+				message = newMessage.Content;
+				StateHasChanged();
+			}
+		}
+	}
+
+	private void OpenMessageMenu(Message msg)
+	{
+		selectedMessage = msg;
+		StateHasChanged();
+	}
+
+	private void CloseBottomSheet()
+	{
+		selectedMessage = null;
+		StateHasChanged();
+	}
+
+	private void EditSelectedMessage()
+	{
+		var msg = selectedMessage;
+		CloseBottomSheet();
+		if (msg != null) HandleEditRequest(msg);
+	}
+
+	private async Task DeleteSelectedMessage()
+	{
+		var msg = selectedMessage;
+		CloseBottomSheet();
+		if (msg != null) await HandleDeleteRequest(msg);
+	}
+
+	private async Task CopySelectedMessage()
+	{
+		if (selectedMessage != null)
+			await JSRuntime.InvokeVoidAsync("copyToClipboard", selectedMessage.Content);
+		CloseBottomSheet();
+	}
+
+	private void ToggleReaction(Reaction reaction)
+	{
+		var msgId = selectedMessage?.MessageId;
+		if (msgId == null || user == null || selectedMessage == null) return;
+
+		var alreadyHas = selectedMessage.Reactions?.FirstOrDefault(r => r.ReactionId == reaction.ReactionId && r.UserReactedId == user.UserId);
+
+		// Optimistic Update
+		if (selectedMessage.Reactions == null)
+			selectedMessage.Reactions = new List<MessageReaction>();
+
+		if (alreadyHas != null)
+		{
+			selectedMessage.Reactions.Remove(alreadyHas);
+		}
+		else
+		{
+			// Remove any other existing reaction by this user on this message
+			var existing = selectedMessage.Reactions.FirstOrDefault(r => r.UserReactedId == user.UserId);
+			if (existing != null) selectedMessage.Reactions.Remove(existing);
+
+			selectedMessage.Reactions.Add(new MessageReaction
+			{
+				ReactionId = reaction.ReactionId,
+				UserReactedId = user.UserId,
+				MessageId = msgId.Value,
+				Reaction = reaction
+			});
+		}
+
+		// Force object reference change to trigger Blazor parameter redraw
+		var idx = messages.IndexOf(selectedMessage);
+		if (idx != -1)
+		{
+			messages[idx] = new Message
+			{
+				MessageId = selectedMessage.MessageId,
+				ConversationId = selectedMessage.ConversationId,
+				SenderId = selectedMessage.SenderId,
+				Sender = selectedMessage.Sender,
+				Content = selectedMessage.Content,
+				DateSentUTC = selectedMessage.DateSentUTC,
+				IsDeleted = selectedMessage.IsDeleted,
+				IsEdited = selectedMessage.IsEdited,
+				IsDelivered = selectedMessage.IsDelivered,
+				SeenBy = selectedMessage.SeenBy?.ToList() ?? new List<MessageSeen>(),
+				Reactions = selectedMessage.Reactions?.ToList() ?? new List<MessageReaction>()
+			};
+			selectedMessage = messages[idx];
+		}
+
+		StateHasChanged();
+		CloseBottomSheet();
+		// Fire API request in background
+		_ = Task.Run(async () =>
+		{
+			try
+			{
+				if (alreadyHas != null)
+					await Http.DeleteAsync($"api/messages/{msgId.Value}/reaction?userId={user.UserId}");
+				else
+					await Http.PostAsync($"api/messages/{msgId.Value}/reaction?userId={user.UserId}&reactionId={reaction.ReactionId}", null);
+			}
+			catch { }
+		});
+	}
+
+	private void HandleEditRequest(Message msg)
+	{
+		editingMessage = msg;
+		message = msg.Content;
+		InvokeAsync(async () =>
+		{
+			StateHasChanged();
+			await Task.Delay(50);
+			await JSRuntime.InvokeVoidAsync("focusElement", messageInputRef);
+		});
+	}
+
+	private async Task HandleDeleteRequest(Message msg)
+	{
+		try
+		{
+			await Http.DeleteAsync($"api/messages/{msg.MessageId}");
+		}
+		catch { }
+	}
+
+	private void CancelEdit()
+	{
+		editingMessage = null;
+		message = "";
+		StateHasChanged();
+	}
+
+	protected async override Task OnInitializedAsync()
+	{
+		var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+		var userIdClaim = auth.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+		if (!Guid.TryParse(userIdClaim, out var userId))
+		{
+			isFriendLoading = false;
+			isConvLoading = false;
+			return;
+		}
+
+		try
+		{
+			user = await Http.GetFromJsonAsync<User>("api/users/me");
+			friend = await Http.GetFromJsonAsync<User>($"api/users/{friendId}/basic");
+			var reactions = await Http.GetFromJsonAsync<List<Reaction>>("api/reactions");
+			if (reactions != null) availableReactions = reactions;
+		}
+		catch
+		{
+			user = null;
+			friend = null;
+		}
+		await LoadMore();
+		await InitializeSignalR();
+	}
+	private async Task markNewMessagesAsSeen()
+	{
+		var response = await Http.PutAsync($"api/messages/conversation/{conversationId}/seen?userId={user.UserId}", null);
+	}
+	private async Task LoadMore()
+	{
+		if (user != null && friend != null)
+		{
+			isFriendLoading = false;
+			try
+			{
+				conversationId = GuidCombiner.CombineGuids(user.UserId, friend.UserId);
+				var response = await Http.GetAsync($"api/conversations/{conversationId}");
+				if (response.IsSuccessStatusCode)
+				{
+					conversation = await response.Content.ReadFromJsonAsync<Conversation>();
+				}
+				else if (response.StatusCode == HttpStatusCode.NotFound)
+				{
+					conversation = null;
+				}
+				else
+				{
+					ToastService.ShowToast(ToastType.Danger, "Error", "Failed to get conversation.");
+				}
+				if (conversation != null)
+				{
+					// Clear any stale typing indicators left from previous sessions
+					conversation.ParticipantsTyping.Clear();
+
+					var url = $"api/messages/conversation?conversationId={conversationId}&pageIndex={pageIndex}&pageSize={pageSize}";
+					var newMessages = await Http.GetFromJsonAsync<List<Message>>(url);
+					if (newMessages != null)
+					{
+						messages?.AddRange(newMessages);
+					}
+					if (!messagesMarked)
+					{
+						await markNewMessagesAsSeen();
+						messagesMarked = true;
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine(ex.StackTrace);
+				ToastService.ShowToast(ToastType.Danger, "Error!", "Error getting conversation");
+			}
+			finally
+			{
+				isConvLoading = false;
+			}
+		}
+	}
+
+	private async Task ScrollToBottom()
+	{
+		await JSRuntime.InvokeVoidAsync("scrollToBottom", messagesContainer);
+	}
+
+	private async Task InitializeSignalR()
+	{
+		if (user == null) return;
+
+		// Connect to SignalR
+		await ChatService.ConnectAsync(user.UserId);
+
+		// Subscribe to message events
+		ChatService.OnMessageReceived += HandleNewMessage;
+		ChatService.OnMessageDelivered += HandleMessageDelivery;
+		ChatService.OnMessageSeen += HandleMessageSeen;
+		ChatService.OnUserStatusChanged += HandleStatusChange;
+		ChatService.OnTypingUsers += HandleTypingUsersChanged;
+		ChatService.OnMessageEdited += HandleMessageEdited;
+		ChatService.OnMessageDeleted += HandleMessageDeleted;
+		ChatService.OnReactionReceived += HandleReactionReceived;
+	}
+	private void HandleTypingUsersChanged(UserTyping userTyping)
+	{
+		if (conversationId != userTyping.ConversationId) return;
+		if (conversation == null) return; // no conversation yet, ignore typing events
+
+		lock (typingLock)
+		{
+			if (userTyping.IsTyping)
+			{
+				// Add or update typing user
+				var existing = conversation.ParticipantsTyping.FirstOrDefault(u => u.UserId == userTyping.UserId);
+				if (existing == null)
+				{
+					conversation.ParticipantsTyping.Add(new ConversationTypingUser
+						{
+							UserId = userTyping.UserId,
+							Name = userTyping.Name,
+							PhotoPath = userTyping.PhotoPath,
+							ConversationId = conversation.ConversationId,
+							LastTypingTime = DateTime.UtcNow
+						});
+				}
+				else
+				{
+					existing.LastTypingTime = DateTime.UtcNow;
+				}
+			}
+			else
+			{
+				// Remove user from typing list
+				var userToRemove = conversation.ParticipantsTyping.FirstOrDefault(u => u.UserId == userTyping.UserId);
+				if (userToRemove != null)
+				{
+					conversation.ParticipantsTyping.Remove(userToRemove);
+				}
+			}
+		}
+
+		StartTypingCleanupTimer();
+		StateHasChanged();
+	}
+
+	private void StartTypingCleanupTimer()
+	{
+		// Clear typing indicators after 5 seconds of inactivity
+		_typingCleanupTimer?.Dispose();
+		_typingCleanupTimer = new Timer(_ =>
+		{
+			lock (typingLock)
+			{
+				if (conversation == null) return;
+				var cutoff = DateTime.UtcNow.AddSeconds(-5);
+				conversation.ParticipantsTyping.RemoveAll(u => u.LastTypingTime < cutoff);
+			}
+			InvokeAsync(StateHasChanged);
+		}, null, 5000, Timeout.Infinite);
+	}
+	private void HandleStatusChange(UserStatus userStatus)
+	{
+		if(friendId == userStatus.UserId)
+		{
+			friend.Status = userStatus.Status;
+			StateHasChanged();
+		}
+	}
+	private void HandleNewMessage(Message message)
+	{
+		// Only process messages for current conversation
+		if (message.ConversationId == conversationId)
+		{
+			// Deduplicate: if we already added this message optimistically, update it instead of adding a duplicate
+			var existing = messages.FirstOrDefault(m => m.MessageId == message.MessageId);
+			if (existing != null)
+			{
+				// Update delivery status on the existing optimistic message
+				existing.IsDelivered = message.IsDelivered;
+				InvokeAsync(StateHasChanged);
+				return;
+			}
+
+			// New message from the other participant — add it
+			messages.Add(message);
+			shouldScrollToBottom = true;
+			// User is currently in this chat — auto-mark as seen
+			InvokeAsync(markNewMessagesAsSeen);
+			InvokeAsync(StateHasChanged);
+
+			playRecievedMessageSound();
+		}
+	}
+
+	private void HandleMessageDelivery(Guid convId)
+	{
+		if (convId == conversationId)
+		{
+			// Update delivery status for sent messages
+			foreach (var msg in messages.Where(m =>
+				m.SenderId == user.UserId &&
+				!m.IsDelivered))
+			{
+				msg.IsDelivered = true;
+			}
+		}
+		StateHasChanged();
+	}
+
+	private void HandleMessageSeen(MessageSeen seen)
+	{
+		// Update seen status for sent messages
+		foreach (var msg in messages.Where(m =>
+			m.SenderId == user?.UserId &&
+			m.IsDelivered &&
+			!m.SeenBy.Any(s => s.UserId == seen.UserId)))
+		{
+			msg.SeenBy.Add(seen);
+		}
+		InvokeAsync(StateHasChanged);
+	}
+
+	private void playRecievedMessageSound()
+	{
+		// play sound
+	}
+
+	private void HandleMessageEdited(Message updated)
+	{
+		var existing = messages?.FirstOrDefault(m => m.MessageId == updated.MessageId);
+		if (existing != null)
+		{
+			existing.Content = updated.Content;
+			existing.IsEdited = true;
+		}
+		InvokeAsync(StateHasChanged);
+	}
+
+	private void HandleMessageDeleted(Guid deletedId)
+	{
+		var existing = messages?.FirstOrDefault(m => m.MessageId == deletedId);
+		if (existing != null)
+		{
+			existing.Content = "This message was deleted";
+			existing.IsDeleted = true;
+		}
+		InvokeAsync(StateHasChanged);
+	}
+
+	private void HandleReactionReceived(ReactionEvent reactionEvent)
+	{
+		var existing = messages?.FirstOrDefault(m => m.MessageId == reactionEvent.message.MessageId);
+		if (existing != null)
+		{
+			var idx = messages.IndexOf(existing);
+			if (idx != -1)
+			{
+				// Replace the entire object reference with the incoming one
+				// to force Blazor's Parameter tracking engine to redraw.
+				messages[idx] = reactionEvent.message;
+			}
+		}
+		InvokeAsync(StateHasChanged);
+	}
+
+	public void Dispose()
+	{
+		_typingCleanupTimer?.Dispose();
+		ChatService.OnMessageReceived -= HandleNewMessage;
+		ChatService.OnMessageDelivered -= HandleMessageDelivery;
+		ChatService.OnMessageSeen -= HandleMessageSeen;
+		ChatService.OnUserStatusChanged -= HandleStatusChange;
+		ChatService.OnTypingUsers -= HandleTypingUsersChanged;
+		ChatService.OnMessageEdited -= HandleMessageEdited;
+		ChatService.OnMessageDeleted -= HandleMessageDeleted;
+		ChatService.OnReactionReceived -= HandleReactionReceived;
+	}
+
+}

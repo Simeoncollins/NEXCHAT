@@ -1,8 +1,7 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using NEXCHAT.CoreBusiness;
 using NEXCHAT.CoreBusiness.Interfaces;
-using NEXCHAT.Plugin.EFCore;
 using NEXCHAT.Server.Hubs;
 using NEXCHAT.Server.Services;
 using NEXCHAT.UseCases.ConversationManagement;
@@ -18,10 +17,12 @@ using NEXCHAT.UseCases.ReactionManagement;
 using NEXCHAT.UseCases.ReactionManagement.Interfaces;
 using NEXCHAT.UseCases.Users;
 using NEXCHAT.UseCases.Users.Interfaces;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using NEXCHAT.Infrastructure;
+using System.Text.Json.Serialization;
+using Microsoft.Extensions.FileProviders;
+using NEXCHAT.Infrastructure.Data;
+using NEXCHAT.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,7 +33,6 @@ builder.Services.AddTransient<IConversationRepository, ConversationRepositoryEfC
 builder.Services.AddTransient<IMessageRepository, MessageRepositoryEfCore>();
 builder.Services.AddTransient<INotificationRepository, NotificationRepositoryEfCore>();
 builder.Services.AddTransient<IReactionRepository, ReactionRepositoryEfCore>();
-builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepositoryEfCore>();
 
 // conversation management
 builder.Services.AddTransient<IAddParticipantToConversationUseCase, AddParticipantToConversationUseCase>();
@@ -63,6 +63,7 @@ builder.Services.AddTransient<IGetPendingFriendRequestsUseCase, GetPendingFriend
 builder.Services.AddTransient<IRejectFriendRequestUseCase, RejectFriendRequestUseCase>();
 builder.Services.AddTransient<ISendFriendRequestUseCase, SendFriendRequestUseCase>();
 builder.Services.AddTransient<IUnBlockFriendUseCase, UnBlockFriendUseCase>();
+builder.Services.AddTransient<ICheckIfBlockedByFriendUseCase, CheckIfBlockedByFriendUseCase>();
 
 // notification management
 builder.Services.AddTransient<IGetUnseenNotificationCountUseCase, GetUnseenNotificationCountUseCase>();
@@ -92,12 +93,6 @@ builder.Services.AddScoped<IRealTimeNotifier, SignalRNotifier>();
 builder.Services
   // Core Identity services, but without EF’s built‑in stores:
   .AddIdentityCore<User>(options => {
-      options.Password.RequiredLength = 8;
-      options.Password.RequireDigit = true;
-      options.Password.RequireLowercase = true;
-      options.Password.RequireUppercase = true;
-      options.Password.RequireNonAlphanumeric = false;
-      options.Password.RequireDigit = true;
   })
   // Tell Identity to use your custom store for IUserStore<User> + IUserPasswordStore<User>:
   .AddUserStore<UserRepositoryEfCore>()
@@ -106,35 +101,17 @@ builder.Services
 builder.Services.AddScoped<UserRepositoryEfCore>();
 
 
-//jwt brearer
+//cookie auth
 builder.Services.AddAuthentication(options => {
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
 })
-.AddJwtBearer(options => {
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(
-                                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
-    };
-
-    // allow SignalR to read tokens from query string
-    options.Events = new JwtBearerEvents
-    {
-        OnMessageReceived = ctx => {
-            var token = ctx.Request.Query["access_token"];
-            var path = ctx.HttpContext.Request.Path;
-            if (!string.IsNullOrEmpty(token) && path.StartsWithSegments("/chatHub"))
-                ctx.Token = token;
-            return Task.CompletedTask;
-        }
+.AddCookie(options => {
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Events.OnRedirectToLogin = context => {
+        context.Response.StatusCode = 401;
+        return Task.CompletedTask;
     };
 });
 
@@ -145,39 +122,45 @@ builder.Services.AddSignalR();
 builder.Services.AddDbContextFactory<NEXCHATDBContext>((services, options) =>
 {
     var connectionString = builder.Configuration["ConnectionStrings:NexchatConnection"];
-    options.UseSqlServer(
-        connectionString,
-        sql =>
-        {
-            sql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
-            sql.EnableRetryOnFailure(maxRetryCount: 5);
-        }
-    );
+    options.UseSqlite(connectionString);
 }, ServiceLifetime.Scoped);
+
+builder.Services.AddControllers().AddJsonOptions(options => {
+    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+});
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-
-
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+
 if (app.Environment.IsDevelopment())
 {
+    app.UseWebAssemblyDebugging();
     app.UseSwagger();
     app.UseSwaggerUI();
-    app.UseWebAssemblyDebugging();
+    app.UseDeveloperExceptionPage();
 }
-app.MapHub<ChatHub>("/chatHub");
-
 app.UseHttpsRedirection();
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
+
+app.UseRouting();
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapRazorPages();
 app.MapControllers();
 app.MapFallbackToFile("index.html");
+app.MapHub<ChatHub>("/chatHub");
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<NEXCHATDBContext>>();
+    using var dbContext = dbFactory.CreateDbContext();
+    dbContext.Database.Migrate();
+}
+
 app.Run();

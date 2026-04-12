@@ -46,8 +46,10 @@ namespace NEXCHAT.Server.Controllers
         {
             var conversationId = await startConversationUseCase.ExecuteAsync(
                 request.CreatorId,
+                request.ConversationdId,
                 request.Participants,
                 request.IsGroup,
+                request.Message,
                 request.GroupName
             );
 
@@ -59,7 +61,7 @@ namespace NEXCHAT.Server.Controllers
         {
             var conversation = await getConversationUseCase.ExecuteAsync(id);
             if (conversation == null)
-                return NotFound();
+                return NotFound(); // Return 404, NOT an empty Ok()
 
             return Ok(conversation);
         }

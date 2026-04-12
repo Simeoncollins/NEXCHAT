@@ -2,9 +2,8 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using NEXCHAT.Plugin.EFCore;
+using NEXCHAT.Infrastructure.Data;
 
 #nullable disable
 
@@ -16,33 +15,28 @@ namespace NEXCHAT.Infrastructure.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.5")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128);
-
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+            modelBuilder.HasAnnotation("ProductVersion", "9.0.5");
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("ConcurrencyStamp")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("NormalizedName")
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedName")
-                        .IsUnique()
-                        .HasFilter("[NormalizedName] IS NOT NULL");
+                        .IsUnique();
 
                     b.ToTable("Roles", (string)null);
 
@@ -65,24 +59,24 @@ namespace NEXCHAT.Infrastructure.Migrations
                 {
                     b.Property<Guid>("ConversationId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("CreatorId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("DateStartedUTC")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("GroupCoverPhotoPath")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("GroupName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.Property<bool>("IsGroupConversation")
-                        .HasColumnType("bit");
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("ConversationId");
 
@@ -94,10 +88,10 @@ namespace NEXCHAT.Infrastructure.Migrations
             modelBuilder.Entity("NEXCHAT.CoreBusiness.ConversationParticipant", b =>
                 {
                     b.Property<Guid>("ConversationId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.HasKey("ConversationId", "UserId");
 
@@ -111,10 +105,10 @@ namespace NEXCHAT.Infrastructure.Migrations
             modelBuilder.Entity("NEXCHAT.CoreBusiness.ConversationTypingUser", b =>
                 {
                     b.Property<Guid>("ConversationId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.HasKey("ConversationId", "UserId");
 
@@ -129,32 +123,32 @@ namespace NEXCHAT.Infrastructure.Migrations
                 {
                     b.Property<Guid>("MessageId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("ConversationId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("DateSentUTC")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("TEXT");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("IsDelivered")
-                        .HasColumnType("bit");
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("IsEdited")
-                        .HasColumnType("bit");
+                        .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("SenderId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.HasKey("MessageId");
 
@@ -168,16 +162,16 @@ namespace NEXCHAT.Infrastructure.Migrations
             modelBuilder.Entity("NEXCHAT.CoreBusiness.MessageReaction", b =>
                 {
                     b.Property<Guid>("MessageId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("UserReactedId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("MessageReactionId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("ReactionId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.HasKey("MessageId", "UserReactedId");
 
@@ -193,13 +187,13 @@ namespace NEXCHAT.Infrastructure.Migrations
             modelBuilder.Entity("NEXCHAT.CoreBusiness.MessageSeen", b =>
                 {
                     b.Property<Guid>("MessageId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("SeenAtUTC")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("TEXT");
 
                     b.HasKey("MessageId", "UserId");
 
@@ -214,25 +208,25 @@ namespace NEXCHAT.Infrastructure.Migrations
                 {
                     b.Property<Guid>("NotificationId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("DateSent")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("TEXT");
 
                     b.Property<bool>("IsSeen")
-                        .HasColumnType("bit");
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("NotificationType")
                         .IsRequired()
                         .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.HasKey("NotificationId");
 
@@ -245,16 +239,16 @@ namespace NEXCHAT.Infrastructure.Migrations
                 {
                     b.Property<Guid>("ReactionId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("EmojiPath")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("ReactionName")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("TEXT");
 
                     b.HasKey("ReactionId");
 
@@ -296,12 +290,6 @@ namespace NEXCHAT.Infrastructure.Migrations
                         },
                         new
                         {
-                            ReactionId = new Guid("11111111-1111-1111-1111-111111111119"),
-                            EmojiPath = "https://lottie.host/a4cff48f-156f-4114-b27e-cff7bd0f29a6/hE5NQSPEyA.lottie",
-                            ReactionName = "Angry"
-                        },
-                        new
-                        {
                             ReactionId = new Guid("11111111-1111-1111-1111-111111111100"),
                             EmojiPath = "https://lottie.host/76e83562-9204-4362-9fcc-60a17e219d40/nrBKNNLnfZ.lottie",
                             ReactionName = "Unhappy"
@@ -311,12 +299,6 @@ namespace NEXCHAT.Infrastructure.Migrations
                             ReactionId = new Guid("11111111-1111-1111-1111-111111111122"),
                             EmojiPath = "https://lottie.host/29d5ff89-287f-42d1-89bc-25b695e2ed7f/hZFip2GqwA.lottie",
                             ReactionName = "Suprised"
-                        },
-                        new
-                        {
-                            ReactionId = new Guid("11111111-1111-1111-1111-111111111133"),
-                            EmojiPath = "https://lottie.host/632a0f85-69e8-4b70-8d67-02c1c2e08365/XJNJAOQu8D.lottie",
-                            ReactionName = "Cool"
                         },
                         new
                         {
@@ -330,23 +312,23 @@ namespace NEXCHAT.Infrastructure.Migrations
                 {
                     b.Property<Guid>("RefreshTokenId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("TEXT");
 
                     b.Property<bool>("IsRevoked")
-                        .HasColumnType("bit");
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Token")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.HasKey("RefreshTokenId");
 
@@ -357,147 +339,88 @@ namespace NEXCHAT.Infrastructure.Migrations
                 {
                     b.Property<Guid>("UserId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("TEXT")
                         .HasColumnName("UserId");
 
                     b.Property<string>("Bio")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Country")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("DateJoined")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("LastLogin")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("LastName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Phone")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("PhotoPath")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.PrimitiveCollection<string>("Roles")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("SecurityAnswer")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("SecurityQuestion")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("UserName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("TEXT");
 
                     b.HasKey("UserId");
 
                     b.ToTable("Users");
-
-                    b.HasData(
-                        new
-                        {
-                            UserId = new Guid("11111111-1111-1111-1111-111111111111"),
-                            Bio = "Aspiring writer and tech innovator...",
-                            Country = "United States",
-                            DateJoined = new DateTime(2023, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "proxima@gmail.com",
-                            FirstName = "Proxima",
-                            LastLogin = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            LastName = "Cen",
-                            PasswordHash = "AQAAAAIAAYagAAAAEBWuvAH8bLsGDStNP11zDw42A3H2kcA+T0dYM/sVp1D2nS+hIy/85ADCgN9ShVURVw==",
-                            Phone = "1234567890",
-                            PhotoPath = "Uploads/User/bettle.jpg",
-                            Roles = "[\"User\"]",
-                            SecurityAnswer = "Jessie",
-                            SecurityQuestion = "What was the name of your first pet?",
-                            Status = "Online",
-                            UserName = "proximacen10"
-                        },
-                        new
-                        {
-                            UserId = new Guid("11111111-1111-1111-1111-111111111112"),
-                            Bio = "Night sky enthusiast and telescope collector",
-                            Country = "Canada",
-                            DateJoined = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "astro@example.com",
-                            FirstName = "Orion",
-                            LastLogin = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            LastName = "Starborn",
-                            PasswordHash = "AQAAAAIAAYagAAAAEBWuvAH8bLsGDStNP11zDw42A3H2kcA+T0dYM/sVp1D2nS+hIy/85ADCgN9ShVURVw==",
-                            Phone = "555-1234",
-                            PhotoPath = "Uploads/User/orion.jpg",
-                            Roles = "[\"User\"]",
-                            SecurityAnswer = "Jessie",
-                            SecurityQuestion = "What was the name of your first pet?",
-                            Status = "Offline",
-                            UserName = "astro_photographer"
-                        },
-                        new
-                        {
-                            UserId = new Guid("11111111-1111-1111-1111-111111111113"),
-                            Bio = "Building the future of communication technology",
-                            Country = "United Kingdom",
-                            DateJoined = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "pioneer@tech.io",
-                            FirstName = "Ada",
-                            LastLogin = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            LastName = "Innovator",
-                            PasswordHash = "AQAAAAIAAYagAAAAEBWuvAH8bLsGDStNP11zDw42A3H2kcA+T0dYM/sVp1D2nS+hIy/85ADCgN9ShVURVw==",
-                            Phone = "+1-555-9876",
-                            PhotoPath = "Uploads/User/ada.jpg",
-                            Roles = "[\"User\"]",
-                            SecurityAnswer = "Jessie",
-                            SecurityQuestion = "What was the name of your first pet?",
-                            Status = "Offline",
-                            UserName = "tech_pioneer"
-                        });
                 });
 
             modelBuilder.Entity("NEXCHAT.CoreBusiness.UserFriend", b =>
                 {
                     b.Property<Guid>("RequesterId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("ReceiverId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("TEXT");
 
                     b.HasKey("RequesterId", "ReceiverId");
 

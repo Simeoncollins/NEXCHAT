@@ -2,6 +2,6 @@
 {
     public interface IAcceptFriendRequestUseCase
     {
-        Task ExecuteAsync(Guid friendRequestId);
+        Task ExecuteAsync(Guid requesterId, Guid receiverId);
     }
 }

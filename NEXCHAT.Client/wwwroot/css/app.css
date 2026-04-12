@@ -15,7 +15,7 @@
 }
 
 #blazor-error-ui {
-    background: lightyellow;
+    background: black;
     bottom: 0;
     box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
     display: none;
@@ -835,3 +835,196 @@ h1, h2, h3, h4, h5, h6 {
         color: #e100ff;
     }
 }
+
+.chat-list-item {
+    background: rgba(255, 255, 255, 0.05);
+    transition: background 0.3s ease;
+}
+
+    .chat-list-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+/* Unread Badge */
+.unread-badge {
+    background-color: #ef4444; /* red-500 */
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 9999px;
+}
+.skeleton-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+    .skeleton-avatar::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 50%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        animation: shimmer 1.5s infinite;
+    }
+
+
+.skeleton-row {
+    height: 30px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+}
+
+    .skeleton-row::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 50%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        animation: shimmer 1.5s infinite;
+    }
+
+    .skeleton-row.short {
+        width: 70%;
+    }
+
+    .skeleton-row.medium {
+        width: 85%;
+    }
+
+    .skeleton-row.long {
+        width: 100%;
+    }
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-150%);
+    }
+
+    100% {
+        transform: translateX(300%);
+    }
+}
+
+.requestBtn {
+    font-size: 15px;
+    padding: 3px 0;
+    min-width: 120px;
+}
+
+.tab-active {
+    border-bottom: 2px solid var(--neon-cyan, #00f7ff) !important;
+    color: var(--neon-cyan, #00f7ff) !important;
+    font-weight: 600 !important;
+}
+
+/* Chat bubble styling */
+.chat-bubble {
+    max-width: 75%;
+    min-width: min-content;
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    margin-bottom: 0.25rem;
+    line-height: 1.4;
+}
+
+    .chat-bubble.with-image {
+        max-width: unset;
+    }
+
+@media(max-width: 639px) {
+    .chat-bubble.with-image {
+        max-width: 75%;
+    }
+}
+
+.chat-bubble-left {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-top-left-radius: 0.25rem;
+}
+
+.chat-bubble-right {
+    background-color: var(--neon-cyan, #00f7ff);
+    color: #000;
+    border-top-right-radius: 0.25rem;
+}
+/* Timestamp styling */
+.message-timestamp {
+    font-size: 0.75rem;
+    color: #aaa;
+}
+/* Responsive image caption: text container matches image width */
+.caption-container {
+    max-width: 100%; /* will inherit from parent image container */
+}
+
+.chat-date {
+    font-size: 0.75rem;
+    color: #aaa;
+    text-align: center;
+    margin: 1.5rem 0 !important;
+}
+
+.messageTxt {
+    max-height: 165px;
+    field-sizing: content;
+    resize: none;
+    font-size: 13px;
+}
+
+    .messageTxt::-webkit-scrollbar {
+        height: 8px;
+        scrollbar-width: thin;
+    }
+
+    .messageTxt::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 4px;
+    }
+
+    .messageTxt::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+    }
+
+.chatHeader .rounded-full.w-10{
+    width: 50px !important;
+    height: 50px !important;
+    font-size: 20px !important;
+}
+
+@keyframes progressBar {
+    0% {
+        width: 100%;
+    }
+
+    100% {
+        width: 0%;
+    }
+}
+
+/* Bottom sheet slide-up animation */
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.animate-slide-up {
+    animation: slideUp 0.28s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}

@@ -1,42 +1,285 @@
-﻿@page "/"
-@inject HttpClient http
+@page "/"
+@inject AuthenticationStateProvider AuthStateProvider
+@inject HttpClient Http
 @attribute [Authorize]
+@inject ChatSignalRService ChatService
+@inject IToastService ToastService
+@inject NavigationManager Nav
+@implements IDisposable
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Direct messages</PageTitle>
 
-<h1>Hello, world!</h1>
+<main class="flex-grow pt-6 pb-20" style="margin-top: 80px;" data-aos="fade-up">
+	<div class="container mx-auto px-4 py-2">
+		<ChatSearchComponent OnQueryEntered="HandleQuery"></ChatSearchComponent>
 
-Welcome to your new app.
-<table>
-	<tr>
-		<th>Id</th>
-		<th>Name</th>
-		<th>Url</th>
-	</tr>
-	@if(_reactions is not null){
-		foreach(var reaction in _reactions){
-			<tr>
-				<td>@reaction.ReactionId</td>
-				<td>@reaction.ReactionName</td>
-				<td>
-					<dotlottie-player src="@reaction.EmojiPath" background="transparent" speed="1" class="emoji" loop autoplay></dotlottie-player>
-				</td>
-			</tr>
-		}
-	}
-	else{
-		<tr>
-			<td colspan="3" align="center">No emojis available</td>
-		</tr>
-	}
-</table>
+		@if (showProfilePrompt && user != null && (string.IsNullOrEmpty(user.FirstName) || string.IsNullOrEmpty(user.LastName) || string.IsNullOrEmpty(user.Country) || string.IsNullOrEmpty(user.Phone)))
+        {
+            <div class="relative bg-gradient-to-r from-cyan-900/40 to-blue-900/40 border border-cyan-500/20 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-lg mb-6 mt-2">
+                <button @onclick="() => showProfilePrompt = false" class="absolute top-3 right-3 text-gray-400 hover:text-white transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="flex items-center gap-4 pr-6">
+                    <div class="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-user-edit text-cyan-400 text-lg"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-white font-bold text-sm">Complete Your Profile!</h4>
+                        <p class="text-gray-400 text-xs mt-0.5">Let your friends know who you are by updating your details.</p>
+                    </div>
+                </div>
+                <NavLink href="/profile" style="white-space: nowrap;" class="px-5 py-2 bg-cyan-500 hover:bg-cyan-400 text-gray-900 font-bold rounded-xl text-xs transition-transform hover:scale-105 shadow-[0_0_10px_rgba(6,182,212,0.3)] w-full md:w-auto text-center">
+                    Update Profile
+                </NavLink>
+            </div>
+        }
+		<!-- Page Title and New Chat Icon -->
+		<div class="flex items-center justify-between mb-6 space-x-3">
+			@if(isFriednsLoading)
+			{
+				<div class="overflow-x-auto flex space-x-4 py-2">
+					<span class="skeleton-avatar"></span>
+					<span class="skeleton-avatar"></span>
+					<span class="skeleton-avatar"></span>
+					<span class="skeleton-avatar"></span>
+					<span class="skeleton-avatar"></span>
+					<span class="skeleton-avatar"></span>
+					<span class="skeleton-avatar"></span>
+				</div>
+			}
+			else if (!isFriednsLoading && friends != null && friends.Count > 0)
+			{
+				<div class="overflow-x-auto flex space-x-4 py-2">
+
+					@foreach (var friend in friends)
+					{
+						<NavLink href="@($"/chat/{friend.UserId}")">
+							<UserImageComponent 
+							Src="@(string.IsNullOrEmpty(friend.PhotoPath) ? friend.UserName.Substring(0, 2).ToUpper() : friend.PhotoPath)"
+							UserStatus="friend.Status" />
+						</NavLink>
+					}
+				</div>
+				<!-- New Chat Button -->
+
+				<NavLink href="/people" Match="NavLinkMatch.All" class="text-white hover:text-cyan-400 transition-colors">
+					<i class="fas fa-arrow-right"></i>
+				</NavLink>
+			}
+
+		</div>
+
+		<!-- Chat List -->
+		<div class="space-y-2">
+			@if(isConvLoading)
+			{
+				<ChatSkeletonLoadingComponent />
+				<ChatSkeletonLoadingComponent />
+				<ChatSkeletonLoadingComponent />
+				<ChatSkeletonLoadingComponent />
+				<ChatSkeletonLoadingComponent />
+				<ChatSkeletonLoadingComponent />
+				<ChatSkeletonLoadingComponent />
+			}
+
+			else if(!isConvLoading && conversations != null && conversations.Count > 0){
+				foreach(var conv in conversations)
+				{
+					{
+						Guid FriendId;
+						User? Friend = new();
+						if (conv.CreatorId == user?.UserId)
+						{
+							FriendId = conv.ConversationParticipants[0].UserId;
+							Friend = conv.ConversationParticipants[0].User;
+						}
+						else
+						{
+							FriendId = conv.CreatorId;
+							Friend = conv.Creator;
+						}
+						<div class="chat-list-item flex items-center p-3 rounded-lg cursor-pointer">
+							<NavLink href="@($"/profile/{FriendId}")" class="z-10 mr-2">
+								<UserImageComponent 
+								Src="@(string.IsNullOrEmpty(Friend.PhotoPath) ? Friend.UserName.Substring(0, 2).ToUpper() : Friend.PhotoPath)"
+								UserStatus="Friend.Status" />
+							</NavLink>
+
+							<NavLink href="@($"/chat/{FriendId}")" class="flex-grow">
+								<div class="flex items-center justify-between">
+									<span class="font-bold">@Friend.UserName</span>
+									@if (conv.LastMessage.DateSentUTC.Day == DateTime.UtcNow.Day)
+									{
+										<small class="text-gray-400">@conv.LastMessage.DateSentUTC.ToLocalTime().ToString("hh:mm tt")</small>
+									}
+									else
+									{
+										if (conv.LastMessage.DateSentUTC.Year == DateTime.UtcNow.Year)
+										{
+											<small class="text-gray-400">@conv.LastMessage.DateSentUTC.ToLocalTime().ToString("MMM dd")</small>
+										}
+										else{
+											<small class="text-gray-400">@conv.LastMessage.DateSentUTC.ToLocalTime().ToString("MMM dd yyyy")</small>
+										}
+									}
+								</div>
+								<p class="text-sm text-gray-300">@conv.LastMessage.Content</p>
+							</NavLink>
+							@if (conv.UnreadMessagesCount > 0)
+							{
+								<span class="unread-badge ml-3">@conv.UnreadMessagesCount</span>
+
+							}
+						</div>
+					}
+				}
+			}
+			else{
+				<div class="text-center text-gray-500">
+					<p>
+						No conversations found. add new friends and start chatting!
+						<NavLink href="/people" Match="NavLinkMatch.All" class="text-cyan-400">
+							<i class="fas fa-arrow-right"></i>
+						</NavLink>
+					</p>
+				</div>
+			}
+
+
+		</div>
+	</div>
+</main>
 
 @code
 {
-	private List<Reaction>? _reactions;
+	private User? user;
+	private List<FriendDto>? friends = new();
+	private List<Conversation>? conversations = new();
+	private bool isFriednsLoading = true;
+	private bool isConvLoading = true;
+	private bool showProfilePrompt = true;
+
+
+	private void HandleQuery(string query)
+	{
+
+	}
 
 	protected override async Task OnInitializedAsync()
 	{
-		_reactions = await http.GetFromJsonAsync<List<Reaction>>("api/reactions");
+		var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+		var userIdClaim = auth.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+		if (!Guid.TryParse(userIdClaim, out var userId))
+		{
+			isFriednsLoading = false;
+			isConvLoading = false;
+			return;
+		}
+
+		try
+		{
+			// /api/users/me reads from the auth cookie — no userId in URL needed
+			user = await Http.GetFromJsonAsync<User>("api/users/me");
+		}
+		catch
+		{
+			user = null;
+		}
+		if(user != null)
+		{
+			try
+			{
+				friends = await Http.GetFromJsonAsync<List<FriendDto>>($"api/friends/{userId}");
+			}
+			catch
+			{
+				ToastService.ShowToast(ToastType.Danger, "Error!", "Error getting friends");
+			}
+			finally
+			{
+				isFriednsLoading = false;
+			}
+			try
+			{
+				conversations = await Http.GetFromJsonAsync<List<Conversation>>($"api/conversations/user/{userId}");
+			}
+			catch
+			{
+				ToastService.ShowToast(ToastType.Danger, "Error!", "Error getting conversations");
+			}
+			finally
+			{
+				isConvLoading = false;
+			}
+			await InitializeSignalR();
+
+		}
 	}
+
+	private async Task InitializeSignalR()
+	{
+		await ChatService.ConnectAsync(user.UserId);
+
+		ChatService.OnConversationStarted += HandleConversation;
+		ChatService.OnMessageReceived += HandleNewMessage;
+		ChatService.OnUserStatusChanged += HandleUserStatusChanged;
+	}
+
+	private void HandleUserStatusChanged(UserStatus userStatus)
+	{
+		// Update friend status in the friends strip
+		var friend = friends?.FirstOrDefault(f => f.UserId == userStatus.UserId);
+		if (friend != null) friend.Status = userStatus.Status;
+
+		// Update User objects embedded in conversations (Creator + Participants)
+		if (conversations != null)
+		{
+			foreach (var conv in conversations)
+			{
+				if (conv.Creator?.UserId == userStatus.UserId)
+					conv.Creator.Status = userStatus.Status;
+
+				foreach (var p in conv.ConversationParticipants)
+				{
+					if (p.User?.UserId == userStatus.UserId)
+						p.User.Status = userStatus.Status;
+				}
+			}
+		}
+
+		InvokeAsync(StateHasChanged);
+	}
+
+	private void HandleConversation(Conversation conversation)
+	{
+		conversations.Add(conversation);
+		InvokeAsync(StateHasChanged);
+	}
+
+	private void HandleNewMessage(Message message)
+	{
+		// Ignore messages sent by the current user (they don't need a notification or unread bump)
+		if (user != null && message.SenderId == user.UserId) return;
+
+		var conversation = conversations?.FirstOrDefault(c => c.ConversationId == message.ConversationId);
+		if (conversation != null)
+		{
+			conversation.LastMessage = message;
+			conversation.UnreadMessagesCount++;
+		}
+
+		// Show toast popup with sender info; clicking navigates to the chat
+		var senderName = message.Sender?.UserName ?? "Someone";
+		ToastService.ShowToast(ToastType.Info, senderName, message.Content, $"/chat/{message.SenderId}");
+
+		InvokeAsync(StateHasChanged);
+	}
+
+	public void Dispose()
+	{
+		ChatService.OnConversationStarted -= HandleConversation;
+		ChatService.OnMessageReceived -= HandleNewMessage;
+		ChatService.OnUserStatusChanged -= HandleUserStatusChanged;
+	}
+
 }

@@ -1,8 +1,12 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Shared.DTOS;
 using NEXCHAT.UseCases.Users;
 using NEXCHAT.UseCases.Users.Interfaces;
+using Microsoft.AspNetCore.Identity;
+using NEXCHAT.CoreBusiness;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace NEXCHAT.Server.Controllers
 {
@@ -13,24 +17,51 @@ namespace NEXCHAT.Server.Controllers
         private readonly IGetUserByIdUseCase getUserByIdUseCase;
         private readonly IGetUsersByNameUseCase getUsersByNameUseCase;
         private readonly IUpdateUserStatusUseCase updateUserStatusUseCase;
+        private readonly UserManager<User> userManager;
 
         public UsersController
             (
             IGetUserByIdUseCase getUserByIdUseCase,
             IGetUsersByNameUseCase getUsersByNameUseCase,
-            IUpdateUserStatusUseCase updateUserStatusUseCase
+            IUpdateUserStatusUseCase updateUserStatusUseCase,
+            UserManager<User> userManager
             )
         {
             this.getUserByIdUseCase = getUserByIdUseCase;
             this.getUsersByNameUseCase = getUsersByNameUseCase;
             this.updateUserStatusUseCase = updateUserStatusUseCase;
+            this.userManager = userManager;
         }
 
         // GET: api/users/{userId}
-        [HttpGet("{userId}")]
+        [HttpGet("{userId}/detailed")]
         public async Task<IActionResult> GetUserById(Guid userId)
         {
             var user = await getUserByIdUseCase.ExecuteAsync(userId);
+            if (user == null)
+                return NotFound();
+
+            return Ok(user);
+        }
+        
+        // GET: api/users/me — reads from the auth cookie, no userId needed
+        [Authorize]
+        [HttpGet("me")]
+        public async Task<IActionResult> GetCurrentUser()
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
+            var user = await userManager.FindByIdAsync(userIdStr);
+            if (user == null) return NotFound();
+            return Ok(user);
+        }
+
+        // GET: api/users/{userId}/basic — look up another user by id
+        [Authorize]
+        [HttpGet("{userId}/basic")]
+        public async Task<IActionResult> GetUserBasicInfoById(Guid userId)
+        {
+            var user = await userManager.FindByIdAsync(userId.ToString());
             if (user == null)
                 return NotFound();
 
@@ -55,5 +86,35 @@ namespace NEXCHAT.Server.Controllers
             await updateUserStatusUseCase.ExecuteAsync(dto.UserId, dto.StatusType);
             return NoContent();
         }
+        // PUT: api/users/me — update own profile fields
+        [Authorize]
+        [HttpPut("me")]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto)
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(userIdStr, out _)) return Unauthorized();
+            var user = await userManager.FindByIdAsync(userIdStr!);
+            if (user == null) return NotFound();
+
+            user.FirstName = dto.FirstName ?? user.FirstName;
+            user.LastName  = dto.LastName  ?? user.LastName;
+            user.Bio       = dto.Bio       ?? user.Bio;
+            user.Country   = dto.Country   ?? user.Country;
+            user.Phone     = dto.Phone     ?? user.Phone;
+            user.PhotoPath = dto.PhotoPath ?? user.PhotoPath;
+
+            var result = await userManager.UpdateAsync(user);
+            if (!result.Succeeded) return BadRequest(result.Errors);
+            return Ok(user);
+        }
     }
 }
+
+public record UpdateProfileDto(
+    string? FirstName,
+    string? LastName,
+    string? Bio,
+    string? Country,
+    string? Phone,
+    string? PhotoPath
+);

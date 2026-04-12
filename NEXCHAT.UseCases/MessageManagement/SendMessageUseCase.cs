@@ -18,18 +18,10 @@ namespace NEXCHAT.UseCases.MessageManagement
             this.iMessageRepository = iMessageRepository;
         }
 
-        public async Task<Guid> ExecuteAsync(Guid senderId, Guid conversationId, string content)
+        public async Task<Message> ExecuteAsync(Message message)
         {
-            var messageId = Guid.NewGuid();
-            var message = new Message
-            {
-                MessageId = messageId,
-                Content = content,
-                ConversationId = conversationId,
-                SenderId = senderId,
-                DateSentUTC = DateTime.UtcNow,
-            };
-            return await iMessageRepository.SendMessageAsync(message);
+            await iMessageRepository.SendMessageAsync(message);
+            return message;
         }
     }
 }

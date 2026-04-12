@@ -1,10 +1,10 @@
-﻿@page "/auth/signup"
+@page "/auth/signup"
 @using Shared.DTOS
 @inject HttpClient Http
-@inject TokenService TokenSvc
 @inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthStateProvider
 @layout Layout.AuthLayout
+@inject IToastService ToastService
 
 <main class="min-h-screen flex items-center justify-center px-4 authPage">
     <div class="w-full max-w-md bg-black/50 backdrop-blur-sm p-8 rounded-lg shadow-lg">
@@ -78,13 +78,13 @@
         </p>
     </div>
 </main>
-<ToastComponent @ref="toastComponent" Timeout="3000" />
+
 
 @code {
     private RegisterDto credentials = new();
     private bool isSubmitting;
     private string? errorMessage;
-    private ToastComponent? toastComponent;
+
 
     private async Task HandleLogin()
     {
@@ -109,7 +109,7 @@
             
             if (!string.IsNullOrEmpty(errorMessage))
             {
-                toastComponent?.ShowToast(ToastType.Danger, "Error!", errorMessage);
+                ToastService.ShowToast(ToastType.Danger, "Error!", errorMessage);
             }
         }
         catch (Exception ex)
