@@ -83,54 +83,70 @@
 			}
 
 			else if(!isConvLoading && conversations != null && conversations.Count > 0){
-				foreach(var conv in conversations)
+				var filteredList = GetFilteredConversations().ToList();
+				if (filteredList.Count == 0)
 				{
+					<div class="text-center text-gray-500 py-8">
+						<p>No conversations match '@searchQuery'</p>
+					</div>
+				}
+				else
+				{
+					foreach(var conv in filteredList)
 					{
-						Guid FriendId;
-						User? Friend = new();
-						if (conv.CreatorId == user?.UserId)
 						{
-							FriendId = conv.ConversationParticipants[0].UserId;
-							Friend = conv.ConversationParticipants[0].User;
-						}
-						else
-						{
-							FriendId = conv.CreatorId;
-							Friend = conv.Creator;
-						}
-						<div class="chat-list-item flex items-center p-3 rounded-lg cursor-pointer">
-							<NavLink href="@($"/profile/{FriendId}")" class="z-10 mr-2">
-								<UserImageComponent 
-								Src="@(string.IsNullOrEmpty(Friend.PhotoPath) ? Friend.UserName.Substring(0, 2).ToUpper() : Friend.PhotoPath)"
-								UserStatus="Friend.Status" />
-							</NavLink>
-
-							<NavLink href="@($"/chat/{FriendId}")" class="flex-grow">
-								<div class="flex items-center justify-between">
-									<span class="font-bold">@Friend.UserName</span>
-									@if (conv.LastMessage.DateSentUTC.Day == DateTime.UtcNow.Day)
-									{
-										<small class="text-gray-400">@conv.LastMessage.DateSentUTC.ToLocalTime().ToString("hh:mm tt")</small>
-									}
-									else
-									{
-										if (conv.LastMessage.DateSentUTC.Year == DateTime.UtcNow.Year)
-										{
-											<small class="text-gray-400">@conv.LastMessage.DateSentUTC.ToLocalTime().ToString("MMM dd")</small>
-										}
-										else{
-											<small class="text-gray-400">@conv.LastMessage.DateSentUTC.ToLocalTime().ToString("MMM dd yyyy")</small>
-										}
-									}
-								</div>
-								<p class="text-sm text-gray-300">@conv.LastMessage.Content</p>
-							</NavLink>
-							@if (conv.UnreadMessagesCount > 0)
+							Guid FriendId = Guid.Empty;
+							User? Friend = new();
+							var otherParticipant = conv.ConversationParticipants.FirstOrDefault(p => p.UserId != user?.UserId);
+							if (otherParticipant != null)
 							{
-								<span class="unread-badge ml-3">@conv.UnreadMessagesCount</span>
-
+								FriendId = otherParticipant.UserId;
+								Friend = otherParticipant.User;
 							}
-						</div>
+							else if (conv.CreatorId != user?.UserId)
+							{
+								FriendId = conv.CreatorId;
+								Friend = conv.Creator;
+							}
+							else if (conv.ConversationParticipants.Count > 0)
+							{
+								FriendId = conv.ConversationParticipants[0].UserId;
+								Friend = conv.ConversationParticipants[0].User;
+							}
+							<div class="chat-list-item flex items-center p-3 rounded-lg cursor-pointer">
+								<NavLink href="@($"/profile/{FriendId}")" class="z-10 mr-2">
+									<UserImageComponent 
+									Src="@(string.IsNullOrEmpty(Friend.PhotoPath) ? Friend.UserName.Substring(0, 2).ToUpper() : Friend.PhotoPath)"
+									UserStatus="Friend.Status" />
+								</NavLink>
+
+								<NavLink href="@($"/chat/{FriendId}")" class="flex-grow">
+									<div class="flex items-center justify-between">
+										<span class="font-bold">@Friend.UserName</span>
+										@if (conv.LastMessage.DateSentUTC.Day == DateTime.UtcNow.Day)
+										{
+											<small class="text-gray-400">@conv.LastMessage.DateSentUTC.ToLocalTime().ToString("hh:mm tt")</small>
+										}
+										else
+										{
+											if (conv.LastMessage.DateSentUTC.Year == DateTime.UtcNow.Year)
+											{
+												<small class="text-gray-400">@conv.LastMessage.DateSentUTC.ToLocalTime().ToString("MMM dd")</small>
+											}
+											else{
+												<small class="text-gray-400">@conv.LastMessage.DateSentUTC.ToLocalTime().ToString("MMM dd yyyy")</small>
+											}
+										}
+									</div>
+									<p class="text-sm text-gray-300">@conv.LastMessage.Content</p>
+								</NavLink>
+								@if (conv.UnreadMessagesCount > 0)
+								{
+									<span class="unread-badge ml-3">@conv.UnreadMessagesCount</span>
+
+								}
+							</div>
+						}
 					}
 				}
 			}
@@ -158,11 +174,35 @@
 	private bool isFriednsLoading = true;
 	private bool isConvLoading = true;
 	private bool showProfilePrompt = true;
+	private string searchQuery = string.Empty;
 
+	private IEnumerable<Conversation> GetFilteredConversations()
+	{
+		if (string.IsNullOrWhiteSpace(searchQuery) || conversations == null)
+			return conversations ?? Enumerable.Empty<Conversation>();
+
+		return conversations.Where(conv =>
+		{
+			User? friend = null;
+			var otherParticipant = conv.ConversationParticipants.FirstOrDefault(p => p.UserId != user?.UserId);
+			if (otherParticipant != null)
+				friend = otherParticipant.User;
+			else if (conv.CreatorId != user?.UserId)
+				friend = conv.Creator;
+			else if (conv.ConversationParticipants.Count > 0)
+				friend = conv.ConversationParticipants[0].User;
+
+			if (friend == null || string.IsNullOrEmpty(friend.UserName))
+				return false;
+
+			return friend.UserName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase);
+		});
+	}
 
 	private void HandleQuery(string query)
 	{
-
+		searchQuery = query ?? string.Empty;
+		StateHasChanged();
 	}
 
 	protected override async Task OnInitializedAsync()
@@ -202,6 +242,7 @@
 			try
 			{
 				conversations = await Http.GetFromJsonAsync<List<Conversation>>($"api/conversations/user/{userId}");
+				SortConversations();
 			}
 			catch
 			{
@@ -252,22 +293,40 @@
 		InvokeAsync(StateHasChanged);
 	}
 
+	private void SortConversations()
+	{
+		if (conversations != null)
+		{
+			conversations = conversations
+				.OrderByDescending(c => c.LastMessage?.DateSentUTC ?? c.DateStartedUTC)
+				.ToList();
+		}
+	}
+
 	private void HandleConversation(Conversation conversation)
 	{
-		conversations.Add(conversation);
+		if (conversations != null)
+		{
+			conversations.Add(conversation);
+			SortConversations();
+		}
 		InvokeAsync(StateHasChanged);
 	}
 
 	private void HandleNewMessage(Message message)
 	{
-		// Ignore messages sent by the current user (they don't need a notification or unread bump)
-		if (user != null && message.SenderId == user.UserId) return;
-
 		var conversation = conversations?.FirstOrDefault(c => c.ConversationId == message.ConversationId);
 		if (conversation != null)
 		{
 			conversation.LastMessage = message;
-			conversation.UnreadMessagesCount++;
+			
+			// Only bump the unread count if we received the message from someone else
+			if (user == null || message.SenderId != user.UserId)
+			{
+				conversation.UnreadMessagesCount++;
+			}
+			
+			SortConversations();
 		}
 		
 		InvokeAsync(StateHasChanged);
